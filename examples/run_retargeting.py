@@ -38,8 +38,6 @@ def load_motion(path, skeleton_type=None):
     skeleton.skeleton_model = load_skeleton_model(skeleton_type)
     return skeleton, mv
 
-
-
 def main(src_motion_dir, src_skeleton_type, dest_skeleton, dest_skeleton_type, out_dir, auto_scale=False, place_on_ground=False):
     
     dest_skeleton = load_skeleton(dest_skeleton, dest_skeleton_type)

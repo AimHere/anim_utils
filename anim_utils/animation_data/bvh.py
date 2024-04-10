@@ -324,7 +324,7 @@ def generate_bvh_string(skeleton, euler_frames, frame_time):
     * frame_time: float
         time in seconds for the display of each keyframe
     """
-    bvh_string = _generate_hierarchy_string(skeleton) + "\n"
+    bvh_string = _generate_hierarchy_string(skeleton)
     bvh_string += _generate_bvh_frame_string(euler_frames, frame_time)
     return bvh_string
 

@@ -272,6 +272,32 @@ class SkeletonBuilder(object):
         SkeletonBuilder.set_meta_info(skeleton)
         return skeleton
 
+
+    def construct_hierarchy_from_h36m(self, skeleton, h36m, node_name, level):
+        name = h36mreader.bone_names[0]
+        node = SkeletonRootNode(h36m.tree[node_name][0], 3, None, level)
+
+        if node_name in skeleton.animated_joints:
+            is_fixed = False
+            #quaternion_frame_index
+
+        joint_index = -1
+        
+        for c in h36m.tree[node_name]:
+            new_node = self.construct_hierarchy_from_h36m(skeleton, h36m, new_name, level + 1)
+            new_node.parent = node
+            node.children.append(new_node)
+        return node
+    
+    def load_from_h36m(self, h36m):
+        skeleton = Skeleton()
+        self.construct_hierarchy_from_h36m(self, skeleton, h36m, 'ROOT', 0)
+
+
+
+        
+        return skeleton
+    
     def _create_node_from_fbx_node_desc(self, skeleton, data, node_name, parent, level=0):
         node_data = data["nodes"][node_name]
         channels = node_data["channels"]

@@ -1,7 +1,9 @@
 import numpy as np
 from csv import reader
 import torch
+import math
 
+from anim_utils.animation_data.bvh import write_euler_frames_to_bvh_file
 
 def _some_variables():
     """
@@ -104,8 +106,42 @@ def _some_variables():
                   ]
 
 
-
     return parent, offset, rotInd, expmapInd, bone_names
+
+
+# Model
+
+
+# cos_map: (from Erik Herrmann)
+# This is a dictionary containing a map from joint names to x and y vectors defining a local coordinate system of the respective joint. It is used by the retargeting code to retarget between two different skeletons without a t-pose by finding a global correcting rotation after transforming the vectors of the source and target joints into the global coordinate system. The global corection can then be brought back into the local coordinate system to be exported again.
+
+
+
+
+def generate_skeleton_model():
+    model = dict()
+
+    model['name'] = "human36m"
+    model['model'] = {
+        'flip_x_axis' : False,
+        'cos_map' : {}
+        # 'foot_joints' : [],
+        # 'joints' : {},
+        # 'joint_constraints' : {},
+        # 'foot_correction' : {'x' : 0, 'y' : 0 },
+        # 'ik_chains' : {},
+        # 'aligning_root_node' : "",
+        # 'heel_offset' : [],
+        # 'relative_head_dir' : []
+        # 'free_joints_map': {}
+        }
+
+    parents, _, _, _, bone_names = _some_variables().parents()
+
+    
+    return model
+
+    
 
 def fkl(rotmat, parent, offset, rotInd, expmapInd):
     """
@@ -173,6 +209,7 @@ def rotmat2euler(R):
     if (len(idx_remain) > 0):
         R_remain = R[idx_remain, :, :]
         eul_remain = np.zeros([len(idx_remain), 3])
+
         eul_remain[:, 1] = -np.arcsin(R_remain[:, 0, 2])
         eul_remain[:, 0] = np.arctan2(R_remain[:, 1, 2] / np.cos(eul_remain[:, 1]),
                                      R_remain[:, 2, 2] / np.cos(eul_remain[:, 1]))
@@ -181,7 +218,9 @@ def rotmat2euler(R):
                                      R_remain[:, 0, 0] / np.cos(eul_remain[:, 1]))
         
         eul[idx_remain, :] = eul_remain
-    return eul
+
+    return 180.0 / (2 * math.pi) * eul
+
 
 def rotmat2euler_old( R ):
   """
@@ -550,6 +589,12 @@ class Human36MReader:
             else:
                 self.tree['ROOT'] = [self.bone_names[c]]
                 self.root_bone = self.bone_names[c]
+
+
+    def dump_to_bvh(self, filename = None):
+        # Maybe the easy route to a conversion pipeline is batch convert to bvh and then retarget from there using EHerr's other tools
+        pass
+
                 
 if __name__ == '__main__':
     a = np.random.random([32, 3]).astype(np.float32)

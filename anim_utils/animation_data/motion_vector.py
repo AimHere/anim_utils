@@ -23,7 +23,7 @@
 from datetime import datetime
 import os
 import numpy as np
-import imp
+import importlib
 from transformations import quaternion_inverse, quaternion_multiply, quaternion_slerp, quaternion_from_euler, euler_matrix, quaternion_from_matrix
 from .quaternion_frame import convert_euler_frames_to_quaternion_frames
 from .motion_concatenation import align_and_concatenate_frames, smooth_root_positions
@@ -141,7 +141,7 @@ class MotionVector(object):
         else:
             smoothing_window = 0
         from . import motion_concatenation
-        imp.reload(motion_concatenation)
+        importlib.reload(motion_concatenation)
         ik_chains = self.skeleton.skeleton_model["ik_chains"]
         self.frames = motion_concatenation.align_frames_using_forward_blending(self.skeleton, self.skeleton.aligning_root_node, new_frames,
                                                                                self.frames, self._prev_n_frames, self.start_pose,

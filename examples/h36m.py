@@ -1,7 +1,9 @@
 import numpy as np
 from csv import reader
 import torch
+import math
 
+from anim_utils.animation_data.bvh import write_euler_frames_to_bvh_file
 
 def _some_variables():
     """
@@ -206,15 +208,15 @@ def rotmat2euler(R):
     if (len(idx_remain) > 0):
         R_remain = R[idx_remain, :, :]
         eul_remain = np.zeros([len(idx_remain), 3])
-        eul_remain[:, 1] = -np.arcsin(R_remain[:, 0, 2])
-        eul_remain[:, 0] = np.arctan2(R_remain[:, 1, 2] / np.cos(eul_remain[:, 1]),
+        eul_remain[:, 1] = -np.arcsin(R_remain[:, 0, 2]) 
+        eul_remain[:, 0] = np.arctan2(R_remain[:, 1, 2] / np.cos(eul_remain[:, 1]), 
                                      R_remain[:, 2, 2] / np.cos(eul_remain[:, 1]))
         
         eul_remain[:, 2] = np.arctan2(R_remain[:, 0, 1] / np.cos(eul_remain[:, 1]),
                                      R_remain[:, 0, 0] / np.cos(eul_remain[:, 1]))
         
         eul[idx_remain, :] = eul_remain
-    return eul
+    return 180.0 / (2 * math.pi) * eul
 
 def rotmat2euler_old( R ):
   """
@@ -571,6 +573,7 @@ class Human36MReader:
 
     def build_tree(self):
         self.tree = {}
+
         for c, p in enumerate(self.parentjoints):
             if (p >= 0):
                 if (self.bone_names[p] in self.tree):
@@ -583,6 +586,11 @@ class Human36MReader:
             else:
                 self.tree['ROOT'] = [self.bone_names[c]]
                 self.root_bone = self.bone_names[c]
+
+
+    def dump_to_bvh(self, filename = None):
+        # Maybe the easy route to a conversion pipeline is batch convert to bvh and then retarget from there using EHerr's other tools
+        pass
                 
 if __name__ == '__main__':
     a = np.random.random([32, 3]).astype(np.float32)

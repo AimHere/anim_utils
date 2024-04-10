@@ -69,7 +69,6 @@ def construct_hierarchy_from_h36m(skeleton, h36m, node_name, level):
     if (node_name == skeleton.root):    
         node = SkeletonRootNode(h36m.tree[node_name][0], root_channels, None, level)
     elif node_name in h36m.tree:
-
         node = SkeletonJointNode(node_name, default_channels, None, level)
     else:
         node = SkeletonEndSiteNode(node_name, default_channels, None, level)
@@ -86,7 +85,7 @@ def construct_hierarchy_from_h36m(skeleton, h36m, node_name, level):
         #quaternion_frame_index
         
     joint_index = -1
-
+    
     skeleton.nodes[node_name] = node
     if (node_name in h36m.tree):
         for c in h36m.tree[node_name]:
@@ -99,7 +98,7 @@ def construct_hierarchy_from_h36m(skeleton, h36m, node_name, level):
 def load_skeleton_from_h36mreader(h36mreader, skeleton_type = None):
     skeleton = Skeleton()
     # Not sure if it's wise to have 'ROOT' as the name of the root bone
-
+    skeleton.root = h36mreader.tree['ROOT'][0]
     nodes = construct_hierarchy_from_h36m(skeleton, h36mreader, h36mreader.tree['ROOT'][0], 0) 
     create_euler_frame_indices(skeleton)
     SkeletonBuilder.set_meta_info(skeleton)
@@ -198,6 +197,7 @@ def runmain():
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Run retargeting.')
+
     parser.add_argument('dest_skeleton', nargs='?', help='BVH filename')
     parser.add_argument('dest_skeleton_type', nargs='?', help='skeleton model name')
     parser.add_argument('src_motion_dir', nargs='?', help='src BVH directory')
@@ -205,6 +205,7 @@ if __name__ == "__main__":
     parser.add_argument('out_dir', nargs='?', help='output BVH directory')
     parser.add_argument('--auto_scale', default=False, dest='auto_scale', action='store_true')
     parser.add_argument('--place_on_ground', default=False, dest='place_on_ground', action='store_true')
+    
     args = parser.parse_args()
     if args.src_motion_dir is not None and args.dest_skeleton is not None and args.out_dir is not None:
         print(args.auto_scale)

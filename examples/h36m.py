@@ -21,7 +21,6 @@ def _some_variables():
 
     parent = np.array([-1, 0, 1, 2, 3, 4, 0, 6, 7, 8, 9, 0, 11, 12, 13, 14, 12,
                        16, 17, 18, 19, 20, 19, 22, 12, 24, 25, 26, 27, 28, 27, 30])
-    print("Len of parents is %d"%len(parent))
     
     offset = np.array(
         [0.000000, 0.000000, 0.000000, -132.948591, 0.000000, 0.000000, 0.000000, -442.894612, 0.000000, 0.000000,
@@ -172,7 +171,7 @@ def rotmat2xyz(rotmat):
     :param rotmat: N*32*3*3
     :return: N*32*3
     """
-    print("Rotmat shape is ", rotmat.shape)
+
     assert rotmat.shape[1] == 32
     parent, offset, rotInd, expmapInd, bonenames = _some_variables()
     xyz = fkl(rotmat, parent, offset, rotInd, expmapInd)

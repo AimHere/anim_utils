@@ -392,7 +392,7 @@ def _generate_bvh_frame_string(euler_frames, frame_time):
     frame_parameter_string += "Frames: " + str(len(euler_frames)) + "\n"
     frame_parameter_string += "Frame Time: " + str(frame_time) + "\n"
     for frame in euler_frames:
-        frame_parameter_string += ' '.join([str(f) for f in frame])
+        frame_parameter_string += ' '.join(["{:.10f}".format(f) for f in frame])
         frame_parameter_string += '\n'
     return frame_parameter_string
 

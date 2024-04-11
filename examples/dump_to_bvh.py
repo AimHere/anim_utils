@@ -19,7 +19,7 @@ from anim_utils.animation_data import Skeleton
 
 default_channels = ['Xrotation', 'Yrotation', 'Zrotation']
 
-root_channels = ['Xposition', 'Yposition', 'Zposition'].expand(default_channels)
+root_channels = ['Xposition', 'Yposition', 'Zposition'] + default_channels
 MODEL_DATA_PATH = "data" + os.sep + "models"
 
 def create_euler_frame_indices(skeleton):
@@ -60,7 +60,6 @@ def load_motion_from_h36mreader(mv, h36mreader, filter_joints = True, animated_j
 def construct_hierarchy_from_h36m(skeleton, h36m, node_name, level):
 
     if (node_name == skeleton.root):
-        print("Skeleton Root node %s set to root chans"%node_name)
         node = SkeletonRootNode(h36m.tree[node_name][0], root_channels, None, level)
     elif node_name in h36m.tree:
         node = SkeletonJointNode(node_name, default_channels, None, level)

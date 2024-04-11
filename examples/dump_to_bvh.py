@@ -69,7 +69,7 @@ def construct_hierarchy_from_h36m(skeleton, h36m, node_name, level):
 
     nodeidx = h36m.bone_names.index(node_name)
     node.index = nodeidx
-    node.offset = list(h36m.offsets[nodeidx, :])
+    node.offset = list(0.1 * h36m.offsets[nodeidx, :])
 
     # Initial Unit Quaternion. From BVH, it looks like it may come from a reference frame
     node.rotation = np.array([1.0, 0.0, 0.0, 0.0])
@@ -111,16 +111,31 @@ def load_motion_h36m(h36file, skeleton_type = None):
 def main(infile, outfile):
     p = Path(infile)
 
+    
     skel, motion, frame_data = load_motion_h36m(infile, "h36m")
-    write_euler_frames_to_bvh_file(outfile, skel, frame_data.reshape([frame_data.shape[0], -1]), 1.0/50)
+
+    ut_root_pos = np.zeros([frame_data.shape[0], 3])
+    out_rot_data = frame_data.reshape([frame_data.shape[0], -1])
+    write_euler_frames_to_bvh_file(outfile, skel, out_rot_data , 1.0/50)
+
+def dump_keypoints(infile, outfile):
+    h36reader = Human36MReader(infile)
+    kp = h36reader.get_keypoints()
+    np.savez(outfile, poses = h36reader.expmap, keypoints = kp)
+
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description='Run retargeting.')
 
+
+    parser = argparse.ArgumentParser(description='Run retargeting.')
+    parser.add_argument("--kp", type = str, help = "Dump keypoints to a file")
+    
     parser.add_argument('infile', nargs='?', help='H36M filename')
     #parser.add_argument('skeleton_type', nargs='?', help='skeleton model name')
     parser.add_argument('output_file', type = str, help = "output file name")
 
     args = parser.parse_args()
 
+    if (args.kp):
+        dump_keypoints(args.infile, args.kp)
     main(args.infile, args.output_file)

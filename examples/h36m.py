@@ -155,8 +155,9 @@ def fkl(rotmat, parent, offset, rotInd, expmapInd):
     n = rotmat.data.shape[0]
     j_n = offset.shape[0]
     p3d = np.tile(np.expand_dims(offset, 0), [n, 1, 1])
-
-    R = rotmat.view(n, j_n, 3, 3)
+    
+    #R = rotmat.view(n, j_n, 3, 3)
+    R = rotmat.reshape([n, j_n, 3, 3])
     for i in np.arange(1, j_n):
         if parent[i] > 0:
             R[:, i, :, :] = np.matmul(R[:, i, :, :], R[:, parent[i], :, :])
@@ -171,6 +172,7 @@ def rotmat2xyz(rotmat):
     :param rotmat: N*32*3*3
     :return: N*32*3
     """
+    print("Rotmat shape is ", rotmat.shape)
     assert rotmat.shape[1] == 32
     parent, offset, rotInd, expmapInd, bonenames = _some_variables()
     xyz = fkl(rotmat, parent, offset, rotInd, expmapInd)
@@ -539,6 +541,11 @@ def rotmat2xyz_torch(rotmat):
     return xyz
 
 
+def expmap2xyz(expmap):
+    rotmat = np.expand_dims(expmap2rotmat(expmap[1:, :]), 0)
+    return rotmat2xyz(rotmat).squeeze(0)
+
+
 class Human36MReader:
     """ Class for reading the Human3.6m Dataset
     
@@ -571,6 +578,9 @@ class Human36MReader:
     def get_euler_frames(self):
         return np.array([rotmat2euler(expmap2rotmat(self.expmap[i, :, :]) )for i in range(self.framecount())])
 
+    def get_keypoints(self):
+        return np.array([expmap2xyz(self.expmap[i, :, :]) for i in range(self.framecount())])
+    
     def build_tree(self):
         self.tree = {}
 

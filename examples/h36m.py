@@ -177,9 +177,47 @@ def rotmat2xyz(rotmat):
     parent, offset, rotInd, expmapInd, bonenames = _some_variables()
     xyz = fkl(rotmat, parent, offset, rotInd, expmapInd)
     return xyz
-    
+
 
 def rotmat2euler(R):
+
+    R_31 = R[:2, 0]
+    
+    theta1 = -np.arcsin(R[:, 2, 0])
+
+    psi1 = np.arctan2(R[:, 2, 1] / np.cos(theta1), R[:, 2, 2] / np.cos(theta1))
+
+    phi1 = np.arctan2(R[:, 1, 0] / np.cos(theta1), R[:, 0, 0] / np.cos(theta1))
+    
+    # theta2 = math.pi - theta1    
+    # psi2 = np.arctan2(R[:, 2, 1] / np.cos(theta2), R[:, 2, 2] / np.cos(theta2))    
+    # phi2 = np.arctan2(R[:, 1, 0] / np.cos(theta2), R[:, 0, 0] / np.cos(theta2))    
+
+    theta01 = 0.5 * math.pi * np.ones_like(theta1)
+    psi01 = phi + atan2(R[:, 0, 1], R[:0, 2])
+
+    theta01= -0.5 * math.pi * np.ones_like(theta1)
+    psi0neg1 = - phi + atan2(- R[:, 0, 1], - R[:0, 2])
+
+    psi = np.where(R_31 == 1 or R_31 == -1, 0, phi1)
+
+    theta = np.where(((R[:, 2, 0] == 1) or (R[:, 2, 0] == -1)),
+                     R[:, 2, 0] * math.pi,
+                     theta1)
+
+    phi = np.where(R[:, 2, 0] == 1,
+                   psi01,
+                   np.where(R[:, 2, 0] == -1,
+                            psi0neg1,
+                            psi1))
+    
+
+    
+    return np.array([theta1, psi1, phi1]).transpose()
+    
+    
+    
+def rotmat2euler_old2(R):
     n = R.data.shape[0]
     eul = np.zeros([n, 3])
 
@@ -220,7 +258,8 @@ def rotmat2euler(R):
         
         eul[idx_remain, :] = eul_remain
 
-    return 180.0 / math.pi * eul
+    #return 180.0 / math.pi * eul
+    return eul
 
 
 def rotmat2euler_old( R ):
@@ -587,9 +626,10 @@ class Human36MReader:
 
     def get_euler_frames(self, prune_list = None):
         if (prune_list):
-            return np.array([rotmat2euler(expmap2rotmat(self.expmap[i, prune_list, :]) )for i in range(self.framecount())])            
+            ef = np.array([rotmat2euler(expmap2rotmat(self.expmap[i, prune_list, :]) )for i in range(self.framecount())])            
         else:
-            return np.array([rotmat2euler(expmap2rotmat(self.expmap[i, :, :]) )for i in range(self.framecount())])
+            ef = np.array([rotmat2euler(expmap2rotmat(self.expmap[i, :, :]) )for i in range(self.framecount())])
+        return (180/math.pi) * ef
 
 
     def get_euler_frames_torch(self, prune_list = None):

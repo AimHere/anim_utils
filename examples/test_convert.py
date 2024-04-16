@@ -114,7 +114,11 @@ def load_motion_h36m(h36file, skeleton_type = None):
     
 
 root_channels = ['XRotation', 'YRotation', 'ZRotation']
-default_channels = ['XRotation', 'YRotation', 'ZRotation']
+
+channel_order = {'X' : 'XRotation',
+                 'Y' : 'YRotation',
+                 'Z' : 'ZRotation' }
+#default_channels = ['XRotation', 'YRotation', 'ZRotation']
 
 def create_euler_frame_indices(skeleton):
     nodes_without_endsite = [node for node in list(skeleton.nodes.values()) if node.node_type != SKELETON_NODE_TYPE_END_SITE]
@@ -198,6 +202,7 @@ def runmain():
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Run retargeting.')
 
+    parser.add_argument('--ordering', type = str, default = 'XYZ')
     parser.add_argument('dest_skeleton', nargs='?', help='BVH filename')
     parser.add_argument('dest_skeleton_type', nargs='?', help='skeleton model name')
     parser.add_argument('src_motion_dir', nargs='?', help='src BVH directory')
@@ -210,4 +215,7 @@ if __name__ == "__main__":
     if args.src_motion_dir is not None and args.dest_skeleton is not None and args.out_dir is not None:
         print(args.auto_scale)
         print(args.place_on_ground)
+
+        default_channels = [channel_order[c] for c in args.ordering.upper()]
+        
         skel = main(args.src_motion_dir, args.src_skeleton_type, args.dest_skeleton, args.dest_skeleton_type, args.out_dir, bool(args.auto_scale), bool(args.place_on_ground))

@@ -17,9 +17,12 @@ from anim_utils.animation_data.bvh import write_euler_frames_to_bvh_file, conver
 from anim_utils.animation_data import Skeleton
 
 
-default_channels = ['Xrotation', 'Yrotation', 'Zrotation']
 
-root_channels = ['Xposition', 'Yposition', 'Zposition'] + default_channels
+channel_order = {'X' : 'Xrotation',
+                 'Y' : 'Yrotation',
+                 'Z' : 'Zrotation' }
+#default_channels = ['Zrotation', 'Xrotation', 'Yrotation']
+#root_channels = ['Xposition', 'Yposition', 'Zposition'] + default_channels
 MODEL_DATA_PATH = "data" + os.sep + "models"
 
 def create_euler_frame_indices(skeleton):
@@ -41,7 +44,7 @@ def load_skeleton_model(skeleton_type):
         print("Error: model unknown", path)
     return skeleton_model
 
-def load_motion_from_h36mreader(mv, h36mreader, filter_joints = True, animated_joints = True):
+def load_motion_from_h36mreader(mv, h36mreader, filter_joints = True, animated_joints = True, fps = 60.0):
     # H36m is in Exponential map, so needs conversion with both formats
     if (mv.rotation_type == ROTATION_TYPE_QUATERNION):
         quat_frames = h36mreader.get_quaternion_frames()
@@ -53,13 +56,15 @@ def load_motion_from_h36mreader(mv, h36mreader, filter_joints = True, animated_j
 
     mv.n_frames = 0
     mv._prev_n_frames = 0
-    mv.frame_time = 1.0 / 60
+    mv.frame_time = 1.0 / fps
 
 
 # Remember to convert ExpMap to Euler Angles
-def construct_hierarchy_from_h36m(skeleton, h36m, node_name, level):
+def construct_hierarchy_from_h36m(skeleton, h36m, node_name, level, default_channels):
 
     if (node_name == skeleton.root):
+        print("Default chans: ", default_channels)
+        root_channels = ['Xposition', 'Yposition', 'Zposition'] + default_channels
         node = SkeletonRootNode(h36m.tree[node_name][0], root_channels, None, level)
     elif node_name in h36m.tree:
         node = SkeletonJointNode(node_name, default_channels, None, level)
@@ -82,43 +87,77 @@ def construct_hierarchy_from_h36m(skeleton, h36m, node_name, level):
     skeleton.nodes[node_name] = node
     if (node_name in h36m.tree):
         for c in h36m.tree[node_name]:
-            new_node = construct_hierarchy_from_h36m(skeleton, h36m, c, level + 1)
+            new_node = construct_hierarchy_from_h36m(skeleton, h36m, c, level + 1, default_channels)
             new_node.parent = node
             node.children.append(new_node)
     return node
 
 
-def load_skeleton_from_h36mreader(h36mreader, skeleton_type = None):
+def load_skeleton_from_h36mreader(h36mreader, default_channels, skeleton_type = None):
     skeleton = Skeleton()
     # Not sure if it's wise to have 'ROOT' as the name of the root bone
     skeleton.root = h36mreader.tree['ROOT'][0]
     print("Setting root to %s"%skeleton.root)
-    nodes = construct_hierarchy_from_h36m(skeleton, h36mreader, h36mreader.tree['ROOT'][0], 0) 
+    nodes = construct_hierarchy_from_h36m(skeleton, h36mreader, h36mreader.tree['ROOT'][0], 0, default_channels) 
     create_euler_frame_indices(skeleton)
     SkeletonBuilder.set_meta_info(skeleton)
     skeleton.skeleton_model = load_skeleton_model(skeleton_type)
     return skeleton
 
-def load_motion_h36m(h36file, skeleton_type = None):
+
+
+def get_motion_selection(nodelist, node, body_list, level):
+    # Mimics the order of the BVH hierarchy in order to pick out the frames used by the bvh
+    joint_output = []
+    test_joint_output = []
+
+    if (len(nodelist[node].children) > 0):
+        joint_output.append(body_list.index(node))
+        test_joint_output.append(node)
+
+    for child in nodelist[node].children:
+        j, tj = get_motion_selection(nodelist, child.node_name, body_list, level + 1)
+        joint_output.extend(j)
+        test_joint_output.extend(tj)
+    
+    return joint_output, test_joint_output
+
+def load_motion_h36m(h36file, default_channels, skeleton_type = None, fps = 60.0):
     h36mreader = Human36MReader(h36file)
+
+    
     mv = MotionVector()
-    h36skel = load_skeleton_from_h36mreader(h36mreader, skeleton_type)
-    load_motion_from_h36mreader(mv, h36mreader)
-    frame_data = np.array(h36mreader.get_euler_frames())
+    h36skel = load_skeleton_from_h36mreader(h36mreader, default_channels, skeleton_type)
+
+    joints_list, _ = get_motion_selection(h36skel.nodes, h36skel.root, h36mreader.bone_names, 0)
+
+    load_motion_from_h36mreader(mv, h36mreader, fps = fps)
+    frame_data = np.array(h36mreader.get_euler_frames(prune_list = joints_list))
 
     return h36skel, mv, frame_data
-    
-def main(infile, outfile):
+
+
+
+def main(infile, outfile, default_channels, fps = 60.0, noroot = False):
     p = Path(infile)
    
-    skel, motion, frame_data = load_motion_h36m(infile, "h36m")
+    skel, motion, frame_data = load_motion_h36m(infile, default_channels, "h36m")
 
     out_root_pos = np.zeros([frame_data.shape[0], 3])
-    out_rot_data = frame_data.reshape([frame_data.shape[0], -1])
-    #print(out_root_pos.shape, out_rot_data.shape)
+
+    fdata = np.zeros_like(frame_data)
+    fdata[:, :, 0] = frame_data[:, :, 2]
+    fdata[:, :, 1] = frame_data[:, :, 0]
+    fdata[:, :, 2] = frame_data[:, :, 1]    
+    out_rot_data = fdata.reshape([frame_data.shape[0], -1])
+    #out_rot_data = frame_data.reshape([frame_data.shape[0], -1])
+
     out_rot_data = np.concatenate([out_root_pos, out_rot_data], axis = 1)
 
-    write_euler_frames_to_bvh_file(outfile, skel, out_rot_data , 1.0/50)
+    if (noroot):
+        out_rot_data[:, 3:6] = 0.00
+    
+    write_euler_frames_to_bvh_file(outfile, skel, out_rot_data , 1.0 / fps)
 
 def dump_keypoints(infile, outfile):
     h36reader = Human36MReader(infile)
@@ -129,9 +168,14 @@ if __name__ == "__main__":
 
 
     parser = argparse.ArgumentParser(description='Run retargeting.')
+    parser.add_argument('--ordering', type = str, default = 'XYZ')    
     parser.add_argument("--kp", type = str, help = "Dump keypoints to a file")
-    
+    parser.add_argument("--fps", type = float, help = "Override fps", default = 50.0)
+
+    parser.add_argument('--noroot',action="store_true", help = "No root rotation")
     parser.add_argument('infile', nargs='?', help='H36M filename')
+
+
     #parser.add_argument('skeleton_type', nargs='?', help='skeleton model name')
     parser.add_argument('output_file', type = str, help = "output file name")
 
@@ -139,4 +183,7 @@ if __name__ == "__main__":
 
     if (args.kp):
         dump_keypoints(args.infile, args.kp)
-    main(args.infile, args.output_file)
+
+    default_channels = [channel_order[c] for c in args.ordering.upper()]
+
+    main(args.infile, args.output_file, default_channels, fps = args.fps, noroot = args.noroot)

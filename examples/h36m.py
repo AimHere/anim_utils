@@ -84,7 +84,7 @@ def _some_variables():
                   'LowerSpine',
                   'Spine',
                   'Thorax',
-                  'Neck/Nose',
+                  'Nose',
                   'Head',
                   'LClavicle',
                   'LShoulder',
@@ -220,7 +220,7 @@ def rotmat2euler(R):
         
         eul[idx_remain, :] = eul_remain
 
-    return 180.0 / (2 * math.pi) * eul
+    return 180.0 / math.pi * eul
 
 
 def rotmat2euler_old( R ):
@@ -572,17 +572,40 @@ class Human36MReader:
 
         self.build_tree()
 
+    def nonendnodes(self):
+        return [i for i, b in enumerate(self.bone_names) if len(self.tree[b]) > 0]
+        
     def framecount(self):
         return self.expmap.shape[0]
 
-    def get_quaternion_frames(self):
-        return np.array([rotmat2quat(expmap2rotmat(self.expmap[i, :, :]) )for i in range(self.framecount())])        
+    def get_quaternion_frames(self, prune_list = None):
+        if (prune_list):
+            v = self.nonendnodes()
+            return np.array([rotmat2quat(expmap2rotmat(self.expmap[i, prune_list, :]) )for i in range(self.framecount())])
+        else:
+            return np.array([rotmat2quat(expmap2rotmat(self.expmap[i, :, :]) )for i in range(self.framecount())])        
 
-    def get_euler_frames(self):
-        return np.array([rotmat2euler(expmap2rotmat(self.expmap[i, :, :]) )for i in range(self.framecount())])
+    def get_euler_frames(self, prune_list = None):
+        if (prune_list):
+            return np.array([rotmat2euler(expmap2rotmat(self.expmap[i, prune_list, :]) )for i in range(self.framecount())])            
+        else:
+            return np.array([rotmat2euler(expmap2rotmat(self.expmap[i, :, :]) )for i in range(self.framecount())])
 
-    def get_keypoints(self):
-        return np.array([expmap2xyz(self.expmap[i, :, :]) for i in range(self.framecount())])
+
+    def get_euler_frames_torch(self, prune_list = None):
+        if (prune_list):
+            
+            tlist = [rotmat2euler_torch(expmap2rotmat_torch(torch.tensor(self.expmap[i, prune_list, :]))) for i in range(self.framecount())]
+            return np.array([t.numpy() for t in tlist])
+        else:    
+            tlist = [rotmat2euler_torch(expmap2rotmat_torch(torch.tensor(self.expmap[i, :, :]))) for i in range(self.framecount())]
+            return np.array([t.numpy() for t in tlist])
+    
+    def get_keypoints(self, prune_list = None):
+        if (prune_list):
+            return np.array([expmap2xyz(self.expmap[i, prune_list, :]) for i in range(self.framecount())])
+        else:
+            return np.array([expmap2xyz(self.expmap[i, :, :]) for i in range(self.framecount())])
     
     def build_tree(self):
         self.tree = {}

@@ -179,45 +179,49 @@ def rotmat2xyz(rotmat):
     return xyz
 
 
-def rotmat2euler(R):
-
-    R_31 = R[:2, 0]
+def rotmat2euler_aborted(R):
+    # Algorithm from https://eecs.qmul.ac.uk/~gslabaugh/publications/euler.pdf
+    R_31 = R[:, 2, 0]
     
     theta1 = -np.arcsin(R[:, 2, 0])
 
     psi1 = np.arctan2(R[:, 2, 1] / np.cos(theta1), R[:, 2, 2] / np.cos(theta1))
-
     phi1 = np.arctan2(R[:, 1, 0] / np.cos(theta1), R[:, 0, 0] / np.cos(theta1))
     
     # theta2 = math.pi - theta1    
     # psi2 = np.arctan2(R[:, 2, 1] / np.cos(theta2), R[:, 2, 2] / np.cos(theta2))    
     # phi2 = np.arctan2(R[:, 1, 0] / np.cos(theta2), R[:, 0, 0] / np.cos(theta2))    
 
-    theta01 = 0.5 * math.pi * np.ones_like(theta1)
-    psi01 = phi + atan2(R[:, 0, 1], R[:0, 2])
+    #theta01 = 0.5 * math.pi * np.ones_like(theta1)
 
-    theta01= -0.5 * math.pi * np.ones_like(theta1)
-    psi0neg1 = - phi + atan2(- R[:, 0, 1], - R[:0, 2])
 
-    psi = np.where(R_31 == 1 or R_31 == -1, 0, phi1)
+    #theta0neg1= -0.5 * math.pi * np.ones_like(theta1)
+    psi01    =   0 + np.arctan2(  R[:, 0, 1],   R[:, 0, 2])
+    psi0neg1 = - 0 + np.arctan2(- R[:, 0, 1], - R[:, 0, 2])
 
-    theta = np.where(((R[:, 2, 0] == 1) or (R[:, 2, 0] == -1)),
+    
+    phi = np.where(R_31 * R_31 == 1, 0, phi1)
+
+    theta = np.where( R_31 * R_31 == -1,
                      R[:, 2, 0] * math.pi,
                      theta1)
 
-    phi = np.where(R[:, 2, 0] == 1,
+    psi = np.where(R[:, 2, 0] == 1,
                    psi01,
                    np.where(R[:, 2, 0] == -1,
                             psi0neg1,
-                            psi1))
+                            psi01))
     
 
     
-    return np.array([theta1, psi1, phi1]).transpose()
+    return np.array([theta, psi, phi]).transpose()
     
+def rotmat2euler_zxy(R):
+    pass
     
-    
-def rotmat2euler_old2(R):
+def rotmat2euler(R):
+
+    # XYZ format. Try to get these in 'ZXY'?
     n = R.data.shape[0]
     eul = np.zeros([n, 3])
 
@@ -624,6 +628,13 @@ class Human36MReader:
         else:
             return np.array([rotmat2quat(expmap2rotmat(self.expmap[i, :, :]) )for i in range(self.framecount())])        
 
+    # def get_euler_frames(self, prune_list = None):
+    #     if (prune_list):
+    #         ef = np.array([rotmat2euler(expmap2rotmat(self.expmap[i, prune_list, :]) )for i in range(self.framecount())])            
+    #     else:
+    #         ef = np.array([rotmat2euler(expmap2rotmat(self.expmap[i, :, :]) )for i in range(self.framecount())])
+    #     return (180/math.pi) * ef
+
     def get_euler_frames(self, prune_list = None):
         if (prune_list):
             ef = np.array([rotmat2euler(expmap2rotmat(self.expmap[i, prune_list, :]) )for i in range(self.framecount())])            
@@ -646,7 +657,7 @@ class Human36MReader:
             return np.array([expmap2xyz(self.expmap[i, prune_list, :]) for i in range(self.framecount())])
         else:
             return np.array([expmap2xyz(self.expmap[i, :, :]) for i in range(self.framecount())])
-    
+    the retargeter
     def build_tree(self):
         self.tree = {}
         for c, p in enumerate(self.parentjoints):
@@ -669,15 +680,27 @@ class Human36MReader:
 
                 
 if __name__ == '__main__':
-    a = np.random.random([32, 3]).astype(np.float32)
-    at = torch.from_numpy(a)
-    atr = expmap2rotmat_torch(at)
+    # a = np.random.random([32, 3]).astype(np.float32)
+
+    # at = torch.from_numpy(a)
+    # atr = expmap2rotmat_torch(at)
+    # ar = expmap2rotmat(a)
+
+    # teu = rotmat2euler_torch(atr)
+
+    # print(teu)
+
+    # eu = rotmat2euler(ar)
+    # print("--")
+    # print(eu)
+
+
+    a = np.random.random([5, 3])
     ar = expmap2rotmat(a)
+    ae = rotmat2euler_old2(ar)
 
-    teu = rotmat2euler_torch(atr)
-
-    print(teu)
-
-    eu = rotmat2euler(ar)
-    print("--")
-    print(eu)
+    print(ar)
+    print("-- Expmap")
+    print(a)
+    print("-- Euler")
+    print(ae)

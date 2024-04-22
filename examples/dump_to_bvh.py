@@ -4,7 +4,7 @@ from pathlib import Path
 import numpy as np
 import argparse
 
-from h36m import Human36MReader
+from h36m import Human36MReader, _some_variables
 
 from anim_utils.animation_data import BVHReader, MotionVector, SkeletonBuilder   
 
@@ -63,7 +63,7 @@ def load_motion_from_h36mreader(mv, h36mreader, filter_joints = True, animated_j
 def construct_hierarchy_from_h36m(skeleton, h36m, node_name, level, default_channels):
 
     if (node_name == skeleton.root):
-        print("Default chans: ", default_channels)
+        #print("Default chans: ", default_channels)
         root_channels = ['Xposition', 'Yposition', 'Zposition'] + default_channels
         node = SkeletonRootNode(h36m.tree[node_name][0], root_channels, None, level)
     elif node_name in h36m.tree:
@@ -97,7 +97,7 @@ def load_skeleton_from_h36mreader(h36mreader, default_channels, skeleton_type = 
     skeleton = Skeleton()
     # Not sure if it's wise to have 'ROOT' as the name of the root bone
     skeleton.root = h36mreader.tree['ROOT'][0]
-    print("Setting root to %s"%skeleton.root)
+    #print("Setting root to %s"%skeleton.root)
     nodes = construct_hierarchy_from_h36m(skeleton, h36mreader, h36mreader.tree['ROOT'][0], 0, default_channels) 
     create_euler_frame_indices(skeleton)
     SkeletonBuilder.set_meta_info(skeleton)
@@ -137,7 +137,7 @@ def load_motion_h36m(h36file, default_channels, skeleton_type = None, fps = 60.0
 
 
 
-def main(infile, outfile, default_channels, order = 'XYZ',  fps = 60.0, noroot = False):
+def main(infile, outfile, default_channels, order = 'XYZ',  fps = 60.0, noroot = False, norootpos = False, claviclefix = False):
     p = Path(infile)
    
     skel, motion, frame_data = load_motion_h36m(infile, default_channels, "h36m", order = order)
@@ -156,7 +156,17 @@ def main(infile, outfile, default_channels, order = 'XYZ',  fps = 60.0, noroot =
     if (noroot):
         out_rot_data[:, 3:6] = 0.00
 
+    if (norootpos):
+        out_rot_data[:, :3] = 0.00
 
+    if (claviclefix):
+        bn = _some_variables()[4]
+        lclidx = bn.index("LClavicle")
+        rclidx = bn.index("RClavicle")
+
+        out_rot_data[:, 3 * (lclidx + 1) + 2] = out_rot_data[:, 3 * (lclidx + 1) + 2] - 90
+        out_rot_data[:, 3 * (rclidx + 1) + 2] = out_rot_data[:, 3 * (rclidx + 1) + 2] + 90        
+        
     write_euler_frames_to_bvh_file(outfile, skel, out_rot_data , 1.0 / fps)
 
 def dump_keypoints(infile, outfile):
@@ -171,8 +181,11 @@ if __name__ == "__main__":
     parser.add_argument('--ordering', type = str, default = 'XYZ')    
     parser.add_argument("--kp", type = str, help = "Dump keypoints to a file")
     parser.add_argument("--fps", type = float, help = "Override fps", default = 50.0)
+    parser.add_argument("--norootpos", action = "store_true", help = "No root motion")
 
-    parser.add_argument('--noroot',action="store_true", help = "No root rotation")
+    parser.add_argument("--claviclefix", action = "store_true", help = "Alter clavicle rotations")
+    
+    parser.add_argument('--norootori',action="store_true", help = "No root rotation")
     parser.add_argument('infile', nargs='?', help='H36M filename')
 
 
@@ -186,4 +199,6 @@ if __name__ == "__main__":
 
     default_channels = [channel_order[c] for c in args.ordering.upper()]
 
-    main(args.infile, args.output_file, default_channels, order = args.ordering.upper(), fps = args.fps, noroot = args.noroot)
+    main(args.infile, args.output_file, default_channels, order = args.ordering.upper(), fps = args.fps, noroot = args.norootori, norootpos = args.norootpos, claviclefix = args.claviclefix)
+
+    

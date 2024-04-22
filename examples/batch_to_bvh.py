@@ -4,7 +4,7 @@ import dump_to_bvh
 import argparse
 parser = argparse.ArgumentParser()
 
-parter.add_argument("--order", type = str, default = 'ZYX')
+parser.add_argument("--order", type = str, default = 'XYZ')
 parser.add_argument("in_dir", type = str)
 parser.add_argument("out_dir", type = str)
 
@@ -21,5 +21,5 @@ for path, dirnames, filenames in os.walk(args.in_dir):
             outputfile = os.path.join(args.out_dir, "%s_%s.bvh"%(subject, f[:-4]))
 
             print("Found %s, dumping to %s"%(inputfile, outputfile))
-            dump_to_bvh.main(inputfile, outputfile, default_channels, fps = 50, noroot = True)
+            dump_to_bvh.main(inputfile, outputfile, default_channels, fps = 50)
 

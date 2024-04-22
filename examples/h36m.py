@@ -5,6 +5,146 @@ import math
 
 from anim_utils.animation_data.bvh import write_euler_frames_to_bvh_file
 
+
+euler_params = {
+    'XYZ' : { 'sign' : - 1,
+              'v' : [1, 2, 0],
+              'order' : [0, 1, 2]
+             },
+    
+    'XZY' : { 'sign' : 1,
+              'v' : [2, 1, 0],
+              'order' : [0, 2, 1]
+              },
+    
+    'YXZ' : { 'sign' : 1,
+              'v' : [0, 2, 1],
+              'order' : [1, 0, 2]
+             },
+    'YZX' : { 'sign' : -1,
+              'v' : [2, 0, 1],
+              'order' : [1, 2, 0]
+             },
+    'ZXY' : { 'sign' : -1,
+              'v' : [0, 1, 2],
+              'order' : [2, 0, 1]
+             },
+    'ZYX' : { 'sign' : 1,
+              'v' : [1, 0, 2],
+              'order' : [2, 1, 0]
+             }
+}
+
+
+# YXZ value 3 is wrong
+
+class RotationEuler:
+    def __init__(self, order):
+        self.order = order
+        self.params = euler_params[order]
+    
+        self.sign = self.params['sign']
+        #self.v0,self.v1,self.v2 = self.params['v']
+        
+    def rot_to_euler(self, R, degrees = False):
+
+        v1, v2, v0 = self.params['v']
+        i0, i1, i2 = self.params['order']
+
+        n = R.data.shape[0]
+        eul = np.zeros([n, 3])
+
+        idx_spec1 = (R[:, v0, v2] == 1).nonzero()[0].reshape(-1).tolist()
+        idx_spec2 = (R[:, v0, v2] == -1).nonzero()[0].reshape(-1).tolist()
+
+
+        if (len(idx_spec1) > 0):
+            R_spec1 = R[idx_spec1, :, :]
+            eul_spec1 = np.zeros([len(idx_spec1), 3])
+            eul_spec1[:, i2] = 0
+            eul_spec1[:, i1] = self.sign * np.pi / 2
+
+            delta = np.arctan2(R_spec1[:, v0, v1], R_spec1[:, v0, v2])
+
+            eul_spec1[:, i0] = delta
+            eul[idx_spec1, :] = eul_spec1
+
+        elif(len(idx_spec2) > 0):
+            R_spec2 = R[idx_spec2, :, :]
+            eul_spec2 = np.zeros([len(idx_spec2), 3])
+            eul_spec2[:, i2] = 0
+            eul_spec2[:, i1] = - self.sign * np.pi / 2
+            eul_spec2[:, i0] = delta
+            eul[idx_spec2, :] = eul_spec2
+
+        idx_remain = np.arange(0, n)
+        idx_remain = np.setdiff1d(np.setdiff1d(idx_remain, idx_spec1), idx_spec2).tolist()
+
+
+        if (len(idx_remain) > 0):
+            R_remain = R[idx_remain, :, :]
+            eul_remain = np.zeros([len(idx_remain), 3])
+            eul_remain[:, i1] = - np.arcsin(self.sign * R_remain[:, v0, v2])
+            eul_remain[:, i0] = np.arctan2(self.sign * R_remain[:, v1, v2] / np.cos(eul_remain[:, i1]),
+                                          R_remain[:, v2, v2] / np.cos(eul_remain[:, i1]))
+            
+            eul_remain[:, i2] = np.arctan2(self.sign * R_remain[:, v0, v1] / np.cos(eul_remain[:, i1]),
+                                          R_remain[:, v0, v0] / np.cos(eul_remain[:, i1]))
+            
+            eul[idx_remain, :] = eul_remain
+
+        if degrees:
+            return eul * 180 / math.pi
+        else:            
+            return eul
+    
+    def rot_to_euler_xyz(self, rotmat):
+
+        n = R.data.shape[0]
+        eul = np.zeros([n, 3])
+    
+        idx_spec1 = (R[:, 0, 2] == 1).nonzero()[0].reshape(-1).tolist()
+        idx_spec2 = (R[:, 0, 2] == -1).nonzero()[0].reshape(-1).tolist()
+    
+        if (len(idx_spec1) > 0):
+            R_spec1 = R[idx_spec1, :, :]
+            eul_spec1 = np.zeros([len(idx_spec1), 3])
+            eul_spec1[:, 2] = 0
+            eul_spec1[:, 1] = -np.pi / 2
+            delta = np.arctan2(R_spec1[:, 0, 1], R_spec1[:, 0, 2])
+            eul_spec1[:, 0] = delta
+            eul[idx_spec1, :] = eul_spec1
+    
+        elif(len(idx_spec2) > 0):
+            R_spec2 = R[idx_spec2, :, :]
+            eul_spec2 = np.zeros([len(idx_spec2), 3])
+            eul_spec2[:, 2] = 0
+            eul_spec2[:, 1] = -np.pi / 2
+            delta = np.arctan2(R_spec2[:, 0, 1], R_spec2[:, 0, 2])
+            eul_spec2[:, 0] = delta
+            eul[idx_spec2, :] = eul_spec2
+    
+        idx_remain = np.arange(0, n)
+        idx_remain = np.setdiff1d(np.setdiff1d(idx_remain, idx_spec1), idx_spec2).tolist()
+    
+        if (len(idx_remain) > 0):
+            R_remain = R[idx_remain, :, :]
+            eul_remain = np.zeros([len(idx_remain), 3])
+        
+            eul_remain[:, 1] = -np.arcsin(R_remain[:, 0, 2])
+            eul_remain[:, 0] = np.arctan2(R_remain[:, 1, 2] / np.cos(eul_remain[:, 1]),
+                                          R_remain[:, 2, 2] / np.cos(eul_remain[:, 1]))
+            
+            eul_remain[:, 2] = np.arctan2(R_remain[:, 0, 1] / np.cos(eul_remain[:, 1]),
+                                          R_remain[:, 0, 0] / np.cos(eul_remain[:, 1]))
+            
+            eul[idx_remain, :] = eul_remain
+    
+        #return 180.0 / math.pi * eul
+        return eul
+        
+
+
 def _some_variables():
     """
     borrowed from
@@ -34,7 +174,8 @@ def _some_variables():
          0.000000, 0.000000, 251.728680, 0.000000, 0.000000, 0.000000, 0.000000, 0.000000, 0.000000, 99.999888,
          0.000000, 137.499922, 0.000000, 0.000000, 0.000000, 0.000000])
     offset = offset.reshape(-1, 3)
-
+    offset[:, 2] = -offset[:, 2]
+    offset[:, 0] = -offset[:, 0]    
     rotInd = [[5, 6, 4],
               [8, 9, 7],
               [11, 12, 10],
@@ -216,9 +357,13 @@ def rotmat2euler_aborted(R):
     
     return np.array([theta, psi, phi]).transpose()
     
-def rotmat2euler_zxy(R):
-    pass
-    
+
+
+
+
+
+
+
 def rotmat2euler(R):
 
     # XYZ format. Try to get these in 'ZXY'?
@@ -254,6 +399,8 @@ def rotmat2euler(R):
         eul_remain = np.zeros([len(idx_remain), 3])
 
         eul_remain[:, 1] = -np.arcsin(R_remain[:, 0, 2])
+
+        print("Oldshapes: ", eul_remain.shape, R_remain.shape)        
         eul_remain[:, 0] = np.arctan2(R_remain[:, 1, 2] / np.cos(eul_remain[:, 1]),
                                      R_remain[:, 2, 2] / np.cos(eul_remain[:, 1]))
         
@@ -263,7 +410,7 @@ def rotmat2euler(R):
         eul[idx_remain, :] = eul_remain
 
     #return 180.0 / math.pi * eul
-    return eul
+    return -1.0 * eul
 
 
 def rotmat2euler_old( R ):
@@ -635,11 +782,17 @@ class Human36MReader:
     #         ef = np.array([rotmat2euler(expmap2rotmat(self.expmap[i, :, :]) )for i in range(self.framecount())])
     #     return (180/math.pi) * ef
 
-    def get_euler_frames(self, prune_list = None):
+    def get_euler_frames(self, prune_list = None, order = 'XYZ'):
+
+        rotter = RotationEuler(order)
+        
         if (prune_list):
-            ef = np.array([rotmat2euler(expmap2rotmat(self.expmap[i, prune_list, :]) )for i in range(self.framecount())])            
+            ef = np.array([rotter.rot_to_euler(expmap2rotmat(self.expmap[i, prune_list, :]) )for i in range(self.framecount())])            
         else:
-            ef = np.array([rotmat2euler(expmap2rotmat(self.expmap[i, :, :]) )for i in range(self.framecount())])
+            ef = np.array([rotter.rot_to_euler(expmap2rotmat(self.expmap[i, :, :]) )for i in range(self.framecount())])
+
+        print("Line 3 inframes is ",self.expmap[3, :, :])
+        print("Line 3 outframes (%s) = "%order, 180/math.pi * ef[3, :])
         return (180/math.pi) * ef
 
 
@@ -657,7 +810,7 @@ class Human36MReader:
             return np.array([expmap2xyz(self.expmap[i, prune_list, :]) for i in range(self.framecount())])
         else:
             return np.array([expmap2xyz(self.expmap[i, :, :]) for i in range(self.framecount())])
-    the retargeter
+
     def build_tree(self):
         self.tree = {}
         for c, p in enumerate(self.parentjoints):
@@ -695,12 +848,73 @@ if __name__ == '__main__':
     # print(eu)
 
 
-    a = np.random.random([5, 3])
-    ar = expmap2rotmat(a)
-    ae = rotmat2euler_old2(ar)
+    # a = math.pi * np.random.random([5, 3])
+    # ar = expmap2rotmat(a)
 
-    print(ar)
-    print("-- Expmap")
-    print(a)
-    print("-- Euler")
-    print(ae)
+
+    # aeold = rotmat2euler(ar)
+
+    # print(ar)
+    # print("-- Expmap")
+    # print(a)
+    # print("-- Euler Old")
+    # print(aeold)
+
+    # for k in euler_params.keys():
+    #     rotter = RotationEuler(k)
+    #     aenew = rotter.rot_to_euler(ar, degrees = True)
+    #     print("-- Euler %s"%k)
+    #     print(aenew)
+    inline = np.array([[0.0000000,0.0000000,0.0000000,0.0000000,0.0000000,0.0000000,0.0000000,0.0000000,0.0000000,0.0000000,0.0000000,0.0000000,0.0000000,0.0000000,0.0000000,0.0000000,0.0000000,0.0000000,0.0000000,0.0000000,0.0000000,0.0000000,0.0000000,0.0000000,0.0000000,0.0000000,0.0000000,0.0000000,0.0000000,0.0000000,0.0000000,0.0000000,0.0000000,0.0000000,0.0000000,0.0000000,0.0000000,0.0000000,0.0000000,0.0000000,0.0000000,0.0000000,0.0000000,0.0000000,0.0000000,0.0000000,0.0000000,0.0000000,0.0000000,0.0000000,0.0000000,0.0000000,0.0000000,1.5143042,0.0497094,0.3044088,0.0000000,0.0000000,0.0000000,0.0000000,0.0000000,0.0000000,0.0000000,0.0000000,0.0000000,0.0000000,0.0000000,0.0000000,0.0000000,0.0000000,0.0000000,0.0000000,0.0000000,0.0000000,0.0000000,0.0000000,0.0000000,0.0000000,0.0000000,0.0000000,0.0000000,0.0000000,0.0000000,0.0000000,0.0000000,0.0000000,0.0000000,0.0000000,0.0000000,0.0000000,0.0000000,0.0000000,0.0000000,0.0000000,0.0000000,0.0000000,0.0000000,0.0000000,0.0000000]])
+
+    iexps = np.reshape(inline, [-1, 3])
+    rotmats = expmap2rotmat(iexps)
+    rotter = RotationEuler('XYZ')
+    eulers = rotter.rot_to_euler(rotmats)
+
+    print("in:")
+    print(iexps)
+    print("out:")
+    print(eulers)
+    # atest = np.array([[0.0000000,-0.0000002,0.0000000,0.0000000,0.2080541,0.0681745],
+    #                   [0.1600043,0.0001612,-0.0000740,-0.0001088,0.2079166,0.0679528],
+    #                   [0.2837032,0.0004331,0.0001111,-0.0001073,0.2075894,0.0670719],
+    #                   [0.1974473,0.0001979,0.0001269,-0.0002130,0.2075185,0.0664099],
+    #                   [0.1966746,0.0002139,0.0001187,-0.0001263,0.2072292,0.0657858],
+    #                   [0.1922775,0.0000663,-0.0000725,-0.0000542,0.2070660,0.0654629],
+    #                   [0.1764019,0.0000193,-0.0001744,-0.0000079,0.2070093,0.0651491],
+    #                   [0.1552443,-0.0003429,-0.0003334,0.0001206,0.2072148,0.0650376],
+    #                   [0.1389489,-0.0003722,-0.0001424,-0.0000578,0.2076994,0.0642731],
+    #                   [0.1010318,-0.0002597,-0.0002112,-0.0000925,0.2082615,0.0636271],
+    #                   [0.1082272,-0.0004394,-0.0001771,-0.0002108,0.2095453,0.0639132],
+    #                   [0.0916938,-0.0000561,-0.0001335,-0.0000977,0.2116228,0.0676644],
+    #                   [0.0629198,-0.0002512,0.0000412,-0.0000116,0.2141666,0.0659014],
+    #                   [0.0834834,-0.0000180,-0.0001594,-0.0001949,0.2166039,0.0624719],
+    #                   [0.0232488,-0.0002919,0.0001160,-0.0001281,0.2194210,0.0594136],
+    #                   [0.0612042,-0.0003782,0.0001601,-0.0003549,0.2222754,0.0552798],
+    #                   [0.0832859,-0.0005410,-0.0004756,-0.0003660,0.2248549,0.0523286],
+    #                   [0.0584154,-0.0006370,-0.0007784,-0.0002138,0.2265389,0.0512570],
+    #                   [0.1169882,-0.0014054,-0.0017277,0.0001946,0.2280954,0.0515537],
+    #                   [0.0275635,-0.0023659,-0.0016177,0.0000858,0.2311629,0.0513566]])
+
+
+    
+    # atest = np.reshape(atest,[atest.shape[0], -1, 3])
+
+    # rootposes = atest[:, 0, :]
+    # firstbones = atest[:, 1, :]    
+
+    # rootposesrm = expmap2rotmat(rootposes)
+    # firstbonesrm = expmap2rotmat(firstbones)    
+    # for k in euler_params.keys():
+    #     rotter = RotationEuler(k)
+    #     rooteulers = rotter.rot_to_euler(rootposesrm, degrees = True)
+    #     firsteulers = rotter.rot_to_euler(firstbonesrm, degrees = True)
+        
+    #     print("-- Test_Vals Roots %s"%k)
+    #     print(rooteulers)
+
+    #     print("-- Test_Vals firsts %s"%k)
+    #     print(firsteulers)
+
+

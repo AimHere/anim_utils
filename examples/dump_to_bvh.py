@@ -44,14 +44,14 @@ def load_skeleton_model(skeleton_type):
         print("Error: model unknown", path)
     return skeleton_model
 
-def load_motion_from_h36mreader(mv, h36mreader, filter_joints = True, animated_joints = True, fps = 60.0):
+def load_motion_from_h36mreader(mv, h36mreader, filter_joints = True, animated_joints = True, fps = 60.0, order = 'XYZ'):
     # H36m is in Exponential map, so needs conversion with both formats
     if (mv.rotation_type == ROTATION_TYPE_QUATERNION):
         quat_frames = h36mreader.get_quaternion_frames()
         mv.frames = quat_frames.reshape([quat_frames.shape[0], -1])
         
     elif (mv.rotation_type == ROTATION_TYPE_EULER):
-        euler_frames = h36mreader.get_euler_frames()
+        euler_frames = h36mreader.get_euler_frames(order = order)
         mv.frames = euler_frames.reshape([euler_frames.shape[0], -1])
 
     mv.n_frames = 0
@@ -122,7 +122,7 @@ def get_motion_selection(nodelist, node, body_list, level):
     
     return joint_output, test_joint_output
 
-def load_motion_h36m(h36file, default_channels, skeleton_type = None, fps = 60.0):
+def load_motion_h36m(h36file, default_channels, skeleton_type = None, fps = 60.0, order = 'XYZ'):
     h36mreader = Human36MReader(h36file)
 
     
@@ -131,32 +131,32 @@ def load_motion_h36m(h36file, default_channels, skeleton_type = None, fps = 60.0
 
     joints_list, _ = get_motion_selection(h36skel.nodes, h36skel.root, h36mreader.bone_names, 0)
 
-    load_motion_from_h36mreader(mv, h36mreader, fps = fps)
-    frame_data = np.array(h36mreader.get_euler_frames(prune_list = joints_list))
-
+    load_motion_from_h36mreader(mv, h36mreader, fps = fps, order = order)
+    frame_data = np.array(h36mreader.get_euler_frames(prune_list = joints_list, order = order))
     return h36skel, mv, frame_data
 
 
 
-def main(infile, outfile, default_channels, fps = 60.0, noroot = False):
+def main(infile, outfile, default_channels, order = 'XYZ',  fps = 60.0, noroot = False):
     p = Path(infile)
    
-    skel, motion, frame_data = load_motion_h36m(infile, default_channels, "h36m")
+    skel, motion, frame_data = load_motion_h36m(infile, default_channels, "h36m", order = order)
 
     out_root_pos = np.zeros([frame_data.shape[0], 3])
 
-    fdata = np.zeros_like(frame_data)
-    fdata[:, :, 0] = frame_data[:, :, 2]
-    fdata[:, :, 1] = frame_data[:, :, 0]
-    fdata[:, :, 2] = frame_data[:, :, 1]    
-    out_rot_data = fdata.reshape([frame_data.shape[0], -1])
-    #out_rot_data = frame_data.reshape([frame_data.shape[0], -1])
-
-    out_rot_data = np.concatenate([out_root_pos, out_rot_data], axis = 1)
+    # fdata = np.zeros_like(frame_data)
+    # fdata[:, :, 0] = frame_data[:, :, 2]
+    # fdata[:, :, 1] = frame_data[:, :, 0]
+    # fdata[:, :, 2] = frame_data[:, :, 1]
+    #out_rot_data = fdata.reshape([frame_data.shape[0], -1])
+    out_rot_data = frame_data.reshape([frame_data.shape[0], -1])
+    #out_rot_data = np.concatenate([out_root_pos, out_rot_data], axis = 1)
+    out_rot_data = np.concatenate([out_rot_data, out_root_pos], axis = 1)
 
     if (noroot):
         out_rot_data[:, 3:6] = 0.00
-    
+
+
     write_euler_frames_to_bvh_file(outfile, skel, out_rot_data , 1.0 / fps)
 
 def dump_keypoints(infile, outfile):
@@ -186,4 +186,4 @@ if __name__ == "__main__":
 
     default_channels = [channel_order[c] for c in args.ordering.upper()]
 
-    main(args.infile, args.output_file, default_channels, fps = args.fps, noroot = args.noroot)
+    main(args.infile, args.output_file, default_channels, order = args.ordering.upper(), fps = args.fps, noroot = args.noroot)

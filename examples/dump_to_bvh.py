@@ -122,7 +122,7 @@ def get_motion_selection(nodelist, node, body_list, level):
     
     return joint_output, test_joint_output
 
-def load_motion_h36m(h36file, default_channels, skeleton_type = None, fps = 60.0, order = 'XYZ'):
+def load_motion_h36m(h36file, default_channels, skeleton_type = None, fps = 60.0, order = 'XYZ', reorder = False):
     h36mreader = Human36MReader(h36file)
 
     
@@ -132,25 +132,19 @@ def load_motion_h36m(h36file, default_channels, skeleton_type = None, fps = 60.0
     joints_list, _ = get_motion_selection(h36skel.nodes, h36skel.root, h36mreader.bone_names, 0)
 
     load_motion_from_h36mreader(mv, h36mreader, fps = fps, order = order)
-    frame_data = np.array(h36mreader.get_euler_frames(prune_list = joints_list, order = order))
+    frame_data = np.array(h36mreader.get_euler_frames(prune_list = joints_list, order = order, reorder = reorder))
     return h36skel, mv, frame_data
 
 
 
-def main(infile, outfile, default_channels, order = 'XYZ',  fps = 60.0, noroot = False, norootpos = False, claviclefix = False):
+def main(infile, outfile, default_channels, order = 'XYZ',  fps = 60.0, noroot = False, norootpos = False, claviclefix = False, reorder = False):
     p = Path(infile)
    
-    skel, motion, frame_data = load_motion_h36m(infile, default_channels, "h36m", order = order)
+    skel, motion, frame_data = load_motion_h36m(infile, default_channels, "h36m", order = order, reorder = reorder)
 
     out_root_pos = np.zeros([frame_data.shape[0], 3])
 
-    # fdata = np.zeros_like(frame_data)
-    # fdata[:, :, 0] = frame_data[:, :, 2]
-    # fdata[:, :, 1] = frame_data[:, :, 0]
-    # fdata[:, :, 2] = frame_data[:, :, 1]
-    #out_rot_data = fdata.reshape([frame_data.shape[0], -1])
     out_rot_data = frame_data.reshape([frame_data.shape[0], -1])
-    #out_rot_data = np.concatenate([out_root_pos, out_rot_data], axis = 1)
     out_rot_data = np.concatenate([out_rot_data, out_root_pos], axis = 1)
 
     if (noroot):
@@ -175,14 +169,12 @@ def dump_keypoints(infile, outfile):
     np.savez(outfile, poses = h36reader.expmap, keypoints = kp)
 
 if __name__ == "__main__":
-
-
     parser = argparse.ArgumentParser(description='Run retargeting.')
     parser.add_argument('--ordering', type = str, default = 'XYZ')    
     parser.add_argument("--kp", type = str, help = "Dump keypoints to a file")
     parser.add_argument("--fps", type = float, help = "Override fps", default = 50.0)
     parser.add_argument("--norootpos", action = "store_true", help = "No root motion")
-
+    parser.add_argument("--testreorder", action = "store_true", help = "Reorder root pos")
     parser.add_argument("--claviclefix", action = "store_true", help = "Alter clavicle rotations")
     
     parser.add_argument('--norootori',action="store_true", help = "No root rotation")
@@ -199,6 +191,6 @@ if __name__ == "__main__":
 
     default_channels = [channel_order[c] for c in args.ordering.upper()]
 
-    main(args.infile, args.output_file, default_channels, order = args.ordering.upper(), fps = args.fps, noroot = args.norootori, norootpos = args.norootpos, claviclefix = args.claviclefix)
+    main(args.infile, args.output_file, default_channels, order = args.ordering.upper(), fps = args.fps, noroot = args.norootori, norootpos = args.norootpos, claviclefix = args.claviclefix, reorder = args.testreorder)
 
     

@@ -35,9 +35,6 @@ euler_params = {
              }
 }
 
-
-# YXZ value 3 is wrong
-
 class RotationEuler:
     def __init__(self, order):
         self.order = order
@@ -46,8 +43,7 @@ class RotationEuler:
         self.sign = self.params['sign']
         #self.v0,self.v1,self.v2 = self.params['v']
         
-    def rot_to_euler(self, R, degrees = False):
-
+    def rot_to_euler(self, R, degrees = False, reorder = False):
         v1, v2, v0 = self.params['v']
         i0, i1, i2 = self.params['order']
 
@@ -80,19 +76,22 @@ class RotationEuler:
         idx_remain = np.arange(0, n)
         idx_remain = np.setdiff1d(np.setdiff1d(idx_remain, idx_spec1), idx_spec2).tolist()
 
-
         if (len(idx_remain) > 0):
             R_remain = R[idx_remain, :, :]
             eul_remain = np.zeros([len(idx_remain), 3])
             eul_remain[:, i1] = - np.arcsin(self.sign * R_remain[:, v0, v2])
             eul_remain[:, i0] = np.arctan2(self.sign * R_remain[:, v1, v2] / np.cos(eul_remain[:, i1]),
-                                          R_remain[:, v2, v2] / np.cos(eul_remain[:, i1]))
+                                           R_remain[:, v2, v2] / np.cos(eul_remain[:, i1]))
             
             eul_remain[:, i2] = np.arctan2(self.sign * R_remain[:, v0, v1] / np.cos(eul_remain[:, i1]),
-                                          R_remain[:, v0, v0] / np.cos(eul_remain[:, i1]))
+                                           R_remain[:, v0, v0] / np.cos(eul_remain[:, i1]))
             
             eul[idx_remain, :] = eul_remain
 
+        if (reorder):
+            eul = eul[:, self.params['order']]
+        
+            
         if degrees:
             return eul * 180 / math.pi
         else:            
@@ -772,14 +771,14 @@ class Human36MReader:
     #         ef = np.array([rotmat2euler(expmap2rotmat(self.expmap[i, :, :]) )for i in range(self.framecount())])
     #     return (180/math.pi) * ef
 
-    def get_euler_frames(self, prune_list = None, order = 'XYZ'):
+    def get_euler_frames(self, prune_list = None, order = 'XYZ', reorder = False):
 
         rotter = RotationEuler(order)
         
         if (prune_list):
-            ef = np.array([rotter.rot_to_euler(expmap2rotmat(self.expmap[i, prune_list, :]) )for i in range(self.framecount())])            
+            ef = np.array([rotter.rot_to_euler(expmap2rotmat(self.expmap[i, prune_list, :]), reorder = reorder) for i in range(self.framecount())])            
         else:
-            ef = np.array([rotter.rot_to_euler(expmap2rotmat(self.expmap[i, :, :]) )for i in range(self.framecount())])
+            ef = np.array([rotter.rot_to_euler(expmap2rotmat(self.expmap[i, :, :]), reorder = reorder)for i in range(self.framecount())])
 
 
         ef[:, 1:, :]  = (180/math.pi) * ef[:, 1:, :]
@@ -825,44 +824,53 @@ class Human36MReader:
 
                 
 if __name__ == '__main__':
-    a = np.array([-0.087784,0.1520913,1.8149083,
-                  -1.277117,-0.5005686,1.7185123,
-                  -1.7023442,-0.8528787,1.3199044])
+    # a = np.array([-0.087784,0.1520913,1.8149083,
+    #               -1.277117,-0.5005686,1.7185123,
+    #               -1.7023442,-0.8528787,1.3199044])
 
-    
-    #a = np.array([
-        # -0.0932234,0.1496553,1.816841,
-        # -0.0901167,0.1497043,1.8159411,
-        # -0.087784,0.1520913,1.8149083,
-        # -1.277117,-0.5005686,1.7185123,
-        # -1.6958656,-0.8454831,1.3300213,
-        # -1.6982317,-0.8518177,1.324792,
-        # -1.7023442,-0.8528787,1.3199044,
-        # -1.7274348,-0.8428802,1.3137,
-        # -1.702204,-0.852534,1.3141199,
-        # -1.7128727,-0.8592606,1.298571,
-        # -1.7131711,-0.8551665,1.3039329,
-        # -1.7105469,-0.8436885,1.3281237,
-        # -1.7238495,-0.8390244,1.3215078,
-        # -1.724807,-0.825124,1.3320475,
-        # -1.6956774,-0.8398946,1.3300215,
-        # -1.698384,-0.8407102,1.3255851,
-        # -0.6854224,-0.1182413,1.8573706,
-        # -0.5703838,-0.0597103,1.8667015,
-        # -0.4851359,-0.0172013,1.8671561,
-        # -0.1378789,0.1729176,1.8238779,
-        # -0.1773616,0.1512383,1.8366871,
-        # -0.2100935,0.1325715,1.8459357,
-        # -0.2412646,0.1162834,1.8549991,
-        # -0.2724436,0.1031469,1.8629911,
-        # -0.3101303,0.0902553,1.8729056])
+    a = np.array([-0.0883684,0.1523683,1.8164481,
+                  -0.0895846,0.1513751,1.8158307,
+                  -0.0932234,0.1496553,1.816841,
+                  -0.0901167,0.1497043,1.8159411,
+                  -0.087784,0.1520913,1.8149083,
+                  -1.277117,-0.5005686,1.7185123,
+                  -1.6958656,-0.8454831,1.3300213,
+                  -1.6982317,-0.8518177,1.324792,
+                  -1.7023442,-0.8528787,1.3199044,
+                  -1.7274348,-0.8428802,1.3137,
+                  -1.702204,-0.852534,1.3141199,
+                  -1.7128727,-0.8592606,1.298571,
+                  -1.7131711,-0.8551665,1.3039329,
+                  -1.7105469,-0.8436885,1.3281237,
+                  -1.7238495,-0.8390244,1.3215078,
+                  -1.724807,-0.825124,1.3320475,
+                  -1.6956774,-0.8398946,1.3300215,
+                  -1.698384,-0.8407102,1.3255851,
+                  -0.6854224,-0.1182413,1.8573706,
+                  -0.5703838,-0.0597103,1.8667015,
+                  -0.4851359,-0.0172013,1.8671561,
+                  -0.1378789,0.1729176,1.8238779,
+                  -0.1773616,0.1512383,1.8366871,
+                  -0.2100935,0.1325715,1.8459357])
+                  
+    np.set_printoptions(suppress = True)
     a = np.reshape(a, [-1, 3])
     print("A shape is ", a.shape)
     ar = expmap2rotmat(a)
-    ae = rotmat2euler(ar)
 
+    
+    
     print(a)
-    print("--")
-    print(ar)
-    print("--")
-    print(ae * 180 / math.pi)
+    print("-- Rotmat --")
+    arp = np.reshape(ar, [ar.shape[0], -1])
+    #print(arp)
+    for i in range(arp.shape[0]):
+        print(",".join([str(k) for k in arp[i, :]]))
+
+    for o in euler_params.keys():
+        print("--%s--"%o)        
+        rotter = RotationEuler(o)
+        ae = rotter.rot_to_euler(ar, degrees = True)
+        print(ae)
+
+

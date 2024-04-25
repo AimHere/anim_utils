@@ -80,17 +80,39 @@ class RotationEuler:
             R_remain = R[idx_remain, :, :]
             eul_remain = np.zeros([len(idx_remain), 3])
             eul_remain[:, i1] = - np.arcsin(self.sign * R_remain[:, v0, v2])
-            eul_remain[:, i0] = np.arctan2(self.sign * R_remain[:, v1, v2] / np.cos(eul_remain[:, i1]),
-                                           R_remain[:, v2, v2] / np.cos(eul_remain[:, i1]))
+            # eul_remain[:, i0] = np.arctan2(self.sign * R_remain[:, v1, v2] / np.cos(eul_remain[:, i1]),
+            #                                R_remain[:, v2, v2] / np.cos(eul_remain[:, i1]))
             
-            eul_remain[:, i2] = np.arctan2(self.sign * R_remain[:, v0, v1] / np.cos(eul_remain[:, i1]),
-                                           R_remain[:, v0, v0] / np.cos(eul_remain[:, i1]))
+            # eul_remain[:, i2] = np.arctan2(self.sign * R_remain[:, v0, v1] / np.cos(eul_remain[:, i1]),
+            #                                R_remain[:, v0, v0] / np.cos(eul_remain[:, i1]))
             
-            eul[idx_remain, :] = eul_remain
+            # eul[idx_remain, :] = eul_remain
 
+
+            # eul_asin = np.arcsin(self.sign * R_remain[:, v0, v2])
+
+            # ww = np.where(eul_asin < 0, math.pi + eul_asin, eul_asin)
+            # eul_remain[:, i1] = - eul_asin
+
+            eul_0num = -self.sign * R_remain[:, v1, v2] / np.cos(eul_remain[:, i1])
+            eul_0den = R_remain[:, v2, v2] / np.cos(eul_remain[:, i1])
+            eul_2num = -self.sign * R_remain[:, v0, v1] / np.cos(eul_remain[:, i1])
+            eul_2den = R_remain[:, v0, v0] / np.cos(eul_remain[:, i1])        
+
+            # print("0num: ", eul_0num)
+            # print("0den: ", eul_0den)
+            # print("2num: ", eul_2num)
+            # print("2den: ", eul_2den)        
+
+            #signchange = np.where(eul_0num < 0, 1, -1)
+
+            eul_remain[:, i0] = np.arctan2(eul_0num, eul_0den)
+            eul_remain[:, i2] = np.arctan2(eul_2num, eul_2den)
+
+            eul[idx_remain, :] = eul_remain
+            
         if (reorder):
             eul = eul[:, self.params['order']]
-        
             
         if degrees:
             return eul * 180 / math.pi
@@ -140,7 +162,7 @@ class RotationEuler:
             eul[idx_remain, :] = eul_remain
     
         #return 180.0 / math.pi * eul
-        return eul
+        return  eul
         
 
 
@@ -631,8 +653,9 @@ def rotmat2euler_torch(R):
                                        R_remain[:, 2, 2] / torch.cos(eul_remain[:, 1]))
         eul_remain[:, 2] = torch.atan2(R_remain[:, 0, 1] / torch.cos(eul_remain[:, 1]),
                                        R_remain[:, 0, 0] / torch.cos(eul_remain[:, 1]))
-        eul[idx_remain, :] = eul_remain
 
+        eul[idx_remain, :] = eul_remain
+        
     return eul
 
 def rotmat2quat_torch(R):
@@ -771,18 +794,26 @@ class Human36MReader:
     #         ef = np.array([rotmat2euler(expmap2rotmat(self.expmap[i, :, :]) )for i in range(self.framecount())])
     #     return (180/math.pi) * ef
 
+    def preprocess_frames(self):
+        # Flip the axis so that the y component is always positive
+        q = np.where(self.expmap[:, :, 1] <  0, -1, -1)
+        qq = np.stack([q, q, q], axis = 2)
+        return qq * self.expmap
+
+    
     def get_euler_frames(self, prune_list = None, order = 'XYZ', reorder = False):
 
         rotter = RotationEuler(order)
+
+        pexpmap = self.preprocess_frames()
         
         if (prune_list):
-            ef = np.array([rotter.rot_to_euler(expmap2rotmat(self.expmap[i, prune_list, :]), reorder = reorder) for i in range(self.framecount())])            
+            ef = np.array([rotter.rot_to_euler(expmap2rotmat(pexpmap[i, prune_list, :]), reorder = reorder) for i in range(self.framecount())])            
         else:
-            ef = np.array([rotter.rot_to_euler(expmap2rotmat(self.expmap[i, :, :]), reorder = reorder)for i in range(self.framecount())])
+            ef = np.array([rotter.rot_to_euler(expmap2rotmat(pexpmap[i, :, :]), reorder = reorder)for i in range(self.framecount())])
 
 
         ef[:, 1:, :]  = (180/math.pi) * ef[:, 1:, :]
-
         ef[:, 0, :] =  self.expmap[:, 0, :]
         return ef
 
@@ -857,8 +888,6 @@ if __name__ == '__main__':
     a = np.reshape(a, [-1, 3])
     print("A shape is ", a.shape)
     ar = expmap2rotmat(a)
-
-    
     
     print(a)
     print("-- Rotmat --")
@@ -867,7 +896,8 @@ if __name__ == '__main__':
     for i in range(arp.shape[0]):
         print(",".join([str(k) for k in arp[i, :]]))
 
-    for o in euler_params.keys():
+    #for o in euler_params.keys():
+    for o in ['XYZ']:
         print("--%s--"%o)        
         rotter = RotationEuler(o)
         ae = rotter.rot_to_euler(ar, degrees = True)

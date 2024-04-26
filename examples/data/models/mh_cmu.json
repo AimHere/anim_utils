@@ -4,33 +4,42 @@
         "flip_x_axis": false,
         "foot_joints": [],
         "joints": {
-            "right_clavicle": "RightShoulder",
-            "right_wrist": "RightHand",
-            "spine_1": "Spine",
-            "left_knee": "LeftLeg",
+            "pelvis": "Hips",
+            
             "right_hip": "RightUpLeg",
+            "right_knee": "RightLeg",            
             "right_ankle": "RightFoot",
-            "left_hip": "LeftUpLeg",
-            "left_elbow": "LeftForeArm",
-            "left_wrist": "LeftHand",
-            "right_heel": null,
-            "right_elbow": "RightForeArm",
-            "left_heel": null,
+            "right_heel": null,            
+            "right_toe": "RightToeBase"
+
+            "spine": "LowerBack",            
+            "spine_1": "Spine",
+            "spine_2": "Spine1",
             "neck": "Neck",
             "head": "Head",
+            
+            "left_hip": "LeftUpLeg",            
+            "left_knee": "LeftLeg",
             "left_ankle": "LeftFoot",
+            "left_heel": null,            
+            "left_toe": "LeftToeBase",
+            
+            "left_elbow": "LeftForeArm",
+            "left_wrist": "LeftHand",
+            
+            "right_clavicle": "RightShoulder",
+            "right_wrist": "RightHand",
+
+            "right_elbow": "RightForeArm",
             "left_finger": "LeftHandFinger1",
             "left_shoulder": "LeftArm",
             "left_clavicle": "LeftShoulder",
             "right_finger": "RightHandFinger1",
-            "pelvis": "Hips",
-            "left_toe": "LeftToeBase",
-            "spine_2": "Spine1",
+
             "right_shoulder": "RightArm",
-            "right_knee": "RightLeg",
-            "spine": "LowerBack",
+
             "root": null,
-            "right_toe": "RightToeBase"
+
         },
         "joint_constraints": {},
         "foot_correction": {

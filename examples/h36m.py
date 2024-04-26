@@ -94,9 +94,9 @@ class RotationEuler:
             # ww = np.where(eul_asin < 0, math.pi + eul_asin, eul_asin)
             # eul_remain[:, i1] = - eul_asin
 
-            eul_0num = -self.sign * R_remain[:, v1, v2] / np.cos(eul_remain[:, i1])
+            eul_0num = - self.sign * R_remain[:, v1, v2] / np.cos(eul_remain[:, i1])
             eul_0den = R_remain[:, v2, v2] / np.cos(eul_remain[:, i1])
-            eul_2num = -self.sign * R_remain[:, v0, v1] / np.cos(eul_remain[:, i1])
+            eul_2num = - self.sign * R_remain[:, v0, v1] / np.cos(eul_remain[:, i1])
             eul_2den = R_remain[:, v0, v0] / np.cos(eul_remain[:, i1])        
 
             # print("0num: ", eul_0num)

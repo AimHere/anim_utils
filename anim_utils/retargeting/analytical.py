@@ -88,6 +88,7 @@ def get_quaternion_to_axis(skeleton, joint_a, joint_b, axis):
 
 
 def get_body_axis(skeleton, joint_a, joint_b, project=True):
+    print("Getting body axis for joints %s, %s"%(joint_a, joint_b))
     ident_f = skeleton.identity_frame
     ap = skeleton.nodes[joint_a].get_global_position(ident_f)
     bp = skeleton.nodes[joint_b].get_global_position(ident_f)

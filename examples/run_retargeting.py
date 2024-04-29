@@ -9,6 +9,7 @@ from anim_utils.animation_data.bvh import write_euler_frames_to_bvh_file, conver
 MODEL_DATA_PATH = "data"+os.sep+"models"
 
 def load_json_file(path):
+    print("Loading json %s"%path)
     with open(path, "rt") as in_file:
         return json.load(in_file)
 
@@ -51,6 +52,7 @@ def main(src_motion_dir, src_skeleton_type, dest_skeleton, dest_skeleton_type, o
         ground_height = 5.5 -1.8 + 0.4 #0#85 
         ground_height = 5.5 -1.8 + 0.2 #0#85 
         ground_height *= 0.01
+        print("Loading motion from %s"%filename)
         src_skeleton, src_motion = load_motion(filename, src_skeleton_type)
         src_scale = 1.0
         if auto_scale:

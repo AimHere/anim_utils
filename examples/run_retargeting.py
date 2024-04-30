@@ -65,7 +65,7 @@ def main(src_motion_dir, src_skeleton_type, dest_skeleton, dest_skeleton_type, o
         
         new_frames = retargeting.run(src_motion.frames, frame_range=None)
         frame_data = convert_quaternion_to_euler_frames(dest_skeleton, new_frames)            
-        outfilename = out_dir + os.sep+filename.stem + ".bvh"
+        outfilename = out_dir + os.sep+filename.stem + '_' + dest_skeleton_type +  ".bvh"
         print("write", outfilename, auto_scale, place_on_ground)
         write_euler_frames_to_bvh_file(outfilename, dest_skeleton, frame_data, src_motion.frame_time)
 
@@ -79,7 +79,7 @@ if __name__ == "__main__":
     parser.add_argument('dest_skeleton_type', nargs='?', help='skeleton model name')
     parser.add_argument('src_motion_dir', nargs='?', help='src BVH directory')
     parser.add_argument('src_skeleton_type', nargs='?', help='skeleton model name')
-    parser.add_argument('out_dir', nargs='?', help='output BVH directory')
+    parser.add_argument('out_dir', nargs='?', help='output BVH directory')    
     parser.add_argument('--auto_scale', default=False, dest='auto_scale', action='store_true')
     parser.add_argument('--place_on_ground', default=False, dest='place_on_ground', action='store_true')
     args = parser.parse_args()

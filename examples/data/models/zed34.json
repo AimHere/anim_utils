@@ -10,7 +10,7 @@
             
             "right_hip" : "RightHip",
             "right_knee" : "RightKnee",
-            "right_ankle" : "RightAngle",
+            "right_ankle" : "RightAnkle",
             "right_toe" : null,
             "right_heel" : null,
 
@@ -47,7 +47,7 @@
             "name" : "zed34",
             "Pelvis" : {
                 "y" : [0, 1, 0],
-                "x" : [-1, 0, 0]
+                "x" : [1, 0, 0]
             },            
             "RightHip" : {
                 "y" : [0, -1, 0],
@@ -55,11 +55,11 @@
             },
             "RightKnee" : {
                 "y" : [0, -1, 0],
-                "x" : [1, 0, 0]
+                "x" : [-1, 0, 0]
             },
             "RightAnkle" : {
-                "y" : [0, -1, 0],
-                "x" : [-1, 0, 0]
+                "y" : [1, 0, 0],
+                "x" : [0 ,1, 0]
             },
             "LeftHip" : {
                 "y" : [0, -1, 0],
@@ -67,11 +67,11 @@
             },
             "LeftKnee" : {
                 "y" : [0, -1, 0],
-                "x" : [1, 0, 0]
+                "x" : [-1, 0, 0]
             },
             "LeftAnkle" : {
                 "y" : [0, -1, 0],
-                "x" : [-1, 0, 0]
+                "x" : [1, 0, 0]
             },
             "NavalSpine" : {
                 "y" : [0, 1, 0],
@@ -98,8 +98,8 @@
                 "x" : [0, 1, 0]
             },
             "LeftWrist" : {
-                "y" : [0, 1, 0],
-                "x" : [-1, 0,  0]
+                "y" : [1, 0, 0],
+                "x" : [0, -1,  0]
             },
             "RightClavicle" : {
                 "y" : [-1, 0, 0],

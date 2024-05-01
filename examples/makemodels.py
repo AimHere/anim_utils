@@ -33,14 +33,14 @@ with open(args.infile, 'r') as fp:
             js['model']['cos_map'][args.joint]['x'] = coords[xv]
             js['model']['cos_map'][args.joint]['y'] = coords[yv]
             with open(outfile_template%(xv, yv), 'w') as ofp:
-                json.dump(js, ofp)
+                json.dump(js, ofp, indent = 4)
             
         
 for xv in sorted(coords):
     for yv in sorted(coords):            
         call(['python',
             './run_retargeting.py',
-              './data/target/zed_34_tpose.bvh',
+              './data/target/zed_34_tpose_flipped.bvh',
               outcust_template%(xv, yv),
               'data/testsrc',
               'custom',

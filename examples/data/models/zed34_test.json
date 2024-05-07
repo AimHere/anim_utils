@@ -1,0 +1,122 @@
+{
+    "name" : "zed34",
+    "model" : {
+        "flip_x_axis" : true,
+        "foot_joints" : [],
+
+        "aligning_root_node": "NavalSpine",
+        "joints" : {
+            "pelvis" : "Pelvis",
+            
+            "right_hip" : "RightHip",
+            "right_knee" : "RightKnee",
+            "right_ankle" : "RightAnkle",
+            "right_toe" : null,
+            "right_heel" : null,
+
+            "left_hip" : "LeftHip",
+            "left_knee" : "LeftKnee",
+            "left_ankle" :  "LeftAnkle",
+            "left_toe" : null,
+            "left_heel" : null,
+
+            "spine" : "NavalSpine",
+            "spine_1" : null,
+            "spine_2" : "ChestSpine",
+            "neck" : "Neck",
+            "spine_3" : null,
+            "head" : "Neck",
+            
+            "left_clavicle" : "LeftClavicle",
+            "left_shoulder" : "LeftShoulder",
+            "left_elbow" : "LeftElbow",
+            "left_wrist" : "LeftWrist",
+            "left_finger" : null,
+            "left_thumb" : null,
+
+            "right_clavicle" : "RightClavicle",
+            "right_shoulder" : "RightShoulder",
+            "right_elbow" : "RightElbow",
+            "right_wrist" : "RightWrist",
+            "right_finger" : null,
+            "right_thumb" : null,
+
+            "root" : null
+        },
+        "cos_map" : {
+            "name" : "zed34",
+            "Pelvis" : {
+                "y" : [0, 1, 0],
+                "x" : [1, 0, 0]
+            },            
+            "RightHip" : {
+                "y" : [0, -1, 0],
+                "x" : [1, 0, 0]
+            },
+            "RightKnee" : {
+                "y" : [0, -1, 0],
+                "x" : [1, 0, 0]
+            },
+            "RightAnkle" : {
+                "y" : [0, -1, 0],
+                "x" : [1, 0, 0]
+            },
+            "LeftHip" : {
+                "y" : [0, -1, 0],
+                "x" : [1, 0, 0]
+            },
+            "LeftKnee" : {
+                "y" : [0, -1, 0],
+                "x" : [-1, 0, 0]
+            },
+            "LeftAnkle" : {
+                "y" : [0, -1, 0],
+                "x" : [-1, 0, 0]
+            },
+            "NavalSpine" : {
+                "y" : [0, 1, 0],
+                "x" : [1, 0, 0]
+            },
+            "ChestSpine" : {
+                "y" : [0, 1, 0],
+                "x" : [-1, 0, 0]
+            },
+            "Neck" : {
+                "y" : [0, 1, 0],
+                "x" : [1, 0, 0]
+            },
+            "LeftClavicle" : {
+                "y" : [1, 0, 0],
+                "x" : [0, 0, -1]
+            },
+            "LeftShoulder" : {
+                "y" : [1, 0, 0],
+                "x" : [0, 1, 0]
+            },
+            "LeftElbow" : {
+                "y" : [1, 0, 0],
+                "x" : [0, 1, 0]
+            },
+            "LeftWrist" : {
+                "y" : [1, 0, 0],
+                "x" : [0, -1,  0]
+            },
+            "RightClavicle" : {
+                "y" : [-1, 0, 0],
+                "x" : [0, 1, 0]
+            },
+            "RightShoulder" : {
+                "y" : [-1, 0, 0],
+                "x" : [0, 1, 0]
+            },
+            "RightElbow" : {
+                "y" : [-1, 0, 0],
+                "x" : [0, 1, 0]
+            },
+            "RightWrist" : {
+                "y" : [-1, 0, 0],
+                "x" : [0, 1, 0]
+            }
+        }
+    }
+}    

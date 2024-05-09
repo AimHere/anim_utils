@@ -10,6 +10,12 @@ import struct
 
 from bvh import Bvh
 
+import matplotlib.pyplot as plt
+import matplotlib.animation as animation
+from mpl_toolkits.mplot3d import Axes3D
+import pandas as pd
+
+
 from scipy.spatial.transform import Rotation
 
 DANCEGRAPH_SAVE_MARKER = 'DGSAV'
@@ -375,7 +381,10 @@ class Position:
     def __sub__(self, a):
         return Position([self.x - a.x, self.y - a.y, self.z - a.z])
 
+    def np(self):
+        return np.array([self.x, self.y, self.z])
 
+    
 class Transform:
     def __init__(self, pos, ori):
         self.pos = pos
@@ -510,8 +519,38 @@ class BVHReader():
             self.write_header(fp)
             for i in range(len(self.rotations)):
                 self.write_frame(self, fp, i)
-        
 
+
+class AnimatedScatterKP:
+    def __init__(self, keypoints):
+
+        self.numpoints = len(keypoints[0])
+
+        self.data = keypoints
+
+        t = np.array([np.ones(self.numpoints) * i for i in range(len(self.data))]).flatten()
+        x = np.array([frame[i].x for frame in self.data for i in range(self.numpoints)])
+        y = np.array([frame[i].y for frame in self.data for i in range(self.numpoints)])
+        z = np.array([frame[i].z for frame in self.data for i in range(self.numpoints)])
+
+        self.df = pd.DataFrame({'time' : t,
+                                'x' : x,
+                                'y' : y,
+                                'z' : z})
+        
+        self.fig, self.ax = plt.subplots(1, subplot_kw = dict(projection='3d'))
+        self.graph = self.ax.scatter(self.df.x, self.df.y, self.df.z)
+
+        self.ani = animation.FuncAnimation(self.fig, self.update_plot, frames=len(self.data),
+                                           interval = 33)
+
+        plt.show()
+        
+    def update_plot(self, num):
+        data = self.df[self.df['time'] == num]
+        self.graph._offsets3d = (data.x, data.y, data.z)
+
+                
 if (__name__ == '__main__'):
 
     parser = argparse.ArgumentParser()
@@ -519,9 +558,8 @@ if (__name__ == '__main__'):
     args = parser.parse_args()
 
     bvh = BVHReader(args.infile)
-
-    
     kp = bvh.get_keypoints()
-    print(len(kp))
-    print(len(kp[0]))
-    print([str(i) for i in kp[0]])
+
+    #npkp = np.array([[b.np() for b in frame] for frame in kp])
+
+    anim = AnimatedScatterKP(kp)

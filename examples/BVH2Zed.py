@@ -157,6 +157,46 @@ body_38_tree = {
 
 
 
+#    
+#    "Hips": [0, 99.672, 0.24705],
+#    "Spine": [0, 109.6, -0.98028],
+#    "Spine1" : [-0.000138, 121.24, -2.4026],
+#    "Spine2" : [-0.000047, 134.6, -4.0291],
+#    "Neck" : [-0.000022, 149.63, -3.2362],
+#    "Head" : [-0.000019, 159.96, -0.09375],
+#    "LeftEye" : [2.9479, 167.64, 9.027],
+#    "RightEye" : [-2.9445, 167.64, 9.02767],
+#    "LeftShoulder" : [6.1058, 143.71, -3.3235],
+#    "LeftArm" : [18.761, 143.45, -5.9245],
+#    "LeftForearm" : [46.165, 143.45, -5.9244],
+#    "LeftHand" : [73.78, 143.45, -5.9244],
+#    "LeftHandMiddle4" : [97.309, 143.45, -5.9244], # LeftHandtip?
+#    "LeftHandThumb4" : [87.318, 135.65, 2.7074], #LeftHandThumb
+#    "RightShoulder" : [-6.1057, 143.71, -3.3235],
+#    "RightArm" : [18.761, 143.45, -5.9244],
+#    "RightForearm" : [-46.165, 143.45, -5.9244],
+#    "RightHand" : [-73.78, 143.45, -5.9244],
+#    "RightHandMiddle4" : [-97.309, 143.45, -5.9244], # RightHandtip?
+#    "RightHandThumb4" : [-87.318, 135.65, 2.7074], # RightHandThumb
+#    "RightUpLeg" : [-9.1245, 93.016, 0.19167], # RightHip?
+#    "RightLeg" : [-9.3691, 52.42, -0.32285],
+#    "RightFoot" : [-9.1245, 10.372, -2.3831],
+#    "RightToeEnd" : [-9.4978, -0.11983, 20.25],
+#    "LeftUpLeg" : [9.1245, 93.016, 0.19167], # LeftHip?
+#    "LeftLeg" : [9.3691, 52.42, -0.32537],
+#    "LeftFoot" : [9.1245, 10.372, -2.383],
+#    "LeftToeEnd" : [9.4978, -0.11993, 20.25],
+#    
+#    
+#    "LeftClavicle"
+#    "RightClavicle"
+#    "LeftEar"
+#    "RightEar"
+#    "LeftHeel"
+#    "RightHeel"
+
+
+
 class Quantized_Quaternion:
     # Represent a quaternion with three 16-bit fixed-point ints
     def __init__(self, ints):

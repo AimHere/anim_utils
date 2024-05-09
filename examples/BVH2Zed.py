@@ -4,155 +4,205 @@
 import numpy as np
 import argparse
 import re
+
+import json
+import struct
+
 from bvh import Bvh
 
 from scipy.spatial.transform import Rotation
+
+DANCEGRAPH_SAVE_MARKER = 'DGSAV'
+DGSAV_FRAME_MARKER = 1448298308
+
+DGS_HEADER_TEMPLATE = {
+    "producer_name" : "camera",
+    "save_version" : "0.2",
+    "signal_type" : "zed/v2.1",
+    "zed_v2.1" : {
+        "isReflexive" : True,
+        "zedBodySignalType" : "Body_34_KeypointsPlus",
+        "zedBufferReadRate" : 30,
+        "zedConfidenceThreshold" : 60,
+        "zedCoordinateSystem" : "LEFT_HANDED_Y_UP",
+        "zedDepth" : "ULTRA",
+        "zedFPS" : 60,
+        "zedKeypointsThreshold" : 8,
+        "zedMaxBodyCount" : 10,
+        "zedPlaybackRate" : 1.0,
+        "zedRecordVideo" : "",
+        "zedResolution" : "720",
+        "zedSVOInput" : "",
+        "zedSkeletonSmoothing" : 0.7,
+        "zedStaticCamera" : True,
+        "zedTimeTracking" : False,
+        "zedTrackingModel" : "ACCURATE"
+        }
+}
+
 body_parts34 = [
-    "Pelvis",
-    "NavalSpine",
-    "ChestSpine",
-    "Neck",
-    "LeftClavicle",
-    "LeftShoulder",
-    "LeftElbow",
-    "LeftWrist",
-    "LeftHand",
-    "LeftHandtip",
-    "LeftThumb",
-    "RightClavicle",
-    "RightShoulder",
-    "RightElbow",
-    "RightWrist",
-    "RightHand",
-    "RightHandtip",
-    "RightThumb",
-    "LeftHip",
-    "LeftKnee",
-    "LeftAnkle",
-    "LeftFoot",
-    "RightHip",
-    "RightKnee",
-    "RightAnkle",
-    "RightFoot",
-    "Head",
-    "Nose",
-    "LeftEye",
-    "LeftEar",
-    "RightEye",
-    "RightEar",
-    "LeftHeel",
-    "RightHeel"
+    "PELVIS",
+    "NAVALSPINE",
+    "CHESTSPINE",
+    "NECK",
+    "LEFTCLAVICLE",
+    "LEFTSHOULDER",
+    "LEFTELBOW",
+    "LEFTWRIST",
+    "LEFTHAND",
+    "LEFTHANDTIP",
+    "LEFTTHUMB",
+    "RIGHTCLAVICLE",
+    "RIGHTSHOULDER",
+    "RIGHTELBOW",
+    "RIGHTWRIST",
+    "RIGHTHAND",
+    "RIGHTHANDTIP",
+    "RIGHTTHUMB",
+    "LEFTHIP",
+    "LEFTKNEE",
+    "LEFTANKLE",
+    "LEFTFOOT",
+    "RIGHTHIP",
+    "RIGHTKNEE",
+    "RIGHTANKLE",
+    "RIGHTFOOT",
+    "HEAD",
+    "NOSE",
+    "LEFTEYE",
+    "LEFTEAR",
+    "RIGHTEYE",
+    "RIGHTEAR",
+    "LEFTHEEL",
+    "RIGHTHEEL"
 ]
 
 
 body_parts38 = [
-    "Pelvis",
-    "Spine_1",
-    "Spine_2",
-    "Spine_3",
-    "Neck",
-    "Nose",
-    "Left_Eye",
-    "Right_Eye",
-    "Left_Ear",
-    "Right_Ear",
-    "Left_Clavicle",
-    "Right_Clavicle",
-    "Left_Shoulder",
-    "Right_Shoulder",
-    "Left_Elbow",
-    "Right_Elbow",
-    "Left_Wrist",
-    "Right_Wrist",
-    "Left_Hip",
-    "Right_Hip",
-    "Left_Knee",
-    "Right_Knee",
-    "Left_Ankle",
-    "Right_Ankle",
-    "Left_Big_Toe",
-    "Right_Big_Toe",
-    "Left_Small_Toe",
-    "Right_Small_Toe",
-    "Left_Heel",
-    "Right_Heel",
-    "Left_Hand_Thumb_4",
-    "Right_Hand_Thumb_4",
-    "Left_Hand_Index_1",
-    "Right_Hand_Index_1",
-    "Left_Hand_Middle_4",
-    "Right_Hand_Middle_4",
-    "Left_Hand_Pinky_1",
-    "Right_Hand_Pinky_1"]
+    "PELVIS",
+    "SPINE_1",
+    "SPINE_2",
+    "SPINE_3",
+    "NECK",
+    "NOSE",
+    "LEFT_EYE",
+    "RIGHT_EYE",
+    "LEFT_EAR",
+    "RIGHT_EAR",
+    "LEFT_CLAVICLE",
+    "RIGHT_CLAVICLE",
+    "LEFT_SHOULDER",
+    "RIGHT_SHOULDER",
+    "LEFT_ELBOW",
+    "RIGHT_ELBOW",
+    "LEFT_WRIST",
+    "RIGHT_WRIST",
+    "LEFT_HIP",
+    "RIGHT_HIP",
+    "LEFT_KNEE",
+    "RIGHT_KNEE",
+    "LEFT_ANKLE",
+    "RIGHT_ANKLE",
+    "LEFT_BIG_TOE",
+    "RIGHT_BIG_TOE",
+    "LEFT_SMALL_TOE",
+    "RIGHT_SMALL_TOE",
+    "LEFT_HEEL",
+    "RIGHT_HEEL",
+    "LEFT_HAND_THUMB_4",
+    "RIGHT_HAND_THUMB_4",
+    "LEFT_HAND_INDEX_1",
+    "RIGHT_HAND_INDEX_1",
+    "LEFT_HAND_MIDDLE_4",
+    "RIGHT_HAND_MIDDLE_4",
+    "LEFT_HAND_PINKY_1",
+    "RIGHT_HAND_PINKY_1"]
 
 body_34_tree = { 
-    "PELVIS": ["NAVAL_SPINE", "LEFT_HIP", "RIGHT_HIP"],
-    "NAVAL_SPINE" : ["CHEST_SPINE"],
-    "CHEST_SPINE" : ["LEFT_CLAVICLE", "RIGHT_CLAVICLE", "NECK"],
+    "PELVIS": ["NAVALSPINE", "LEFTHIP", "RIGHTHIP"],
+    "NAVALSPINE" : ["CHESTSPINE"],
+    "CHESTSPINE" : ["LEFTCLAVICLE", "RIGHTCLAVICLE", "NECK"],
 
-    "LEFT_CLAVICLE" : ["LEFT_SHOULDER"],
-    "LEFT_SHOULDER" : ["LEFT_ELBOW"],
-    "LEFT_ELBOW" : ["LEFT_WRIST"],
-    "LEFT_WRIST" : ["LEFT_HAND", "LEFT_THUMB"],
-    "LEFT_HAND" : ["LEFT_HANDTIP"],
+    "LEFTCLAVICLE" : ["LEFTSHOULDER"],
+    "LEFTSHOULDER" : ["LEFTELBOW"],
+    "LEFTELBOW" : ["LEFTWRIST"],
+    "LEFTWRIST" : ["LEFTHAND", "LEFTTHUMB"],
+    "LEFTHAND" : ["LEFTHANDTIP"],
      
-    "RIGHT_CLAVICLE" : ["RIGHT_SHOULDER"],
-    "RIGHT_SHOULDER" : ["RIGHT_ELBOW"],
-    "RIGHT_ELBOW" : ["RIGHT_WRIST"],
-    "RIGHT_WRIST" : ["RIGHT_HAND", "RIGHT_THUMB"],
-    "RIGHT_HAND" : ["RIGHT_HANDTIP"],
+    "RIGHTCLAVICLE" : ["RIGHTSHOULDER"],
+    "RIGHTSHOULDER" : ["RIGHTELBOW"],
+    "RIGHTELBOW" : ["RIGHTWRIST"],
+    "RIGHTWRIST" : ["RIGHTHAND", "RIGHTTHUMB"],
+    "RIGHTHAND" : ["RIGHTHANDTIP"],
      
-    "LEFT_HIP" : ["LEFT_KNEE"],
-    "LEFT_KNEE" : ["LEFT_ANKLE"],
-    "LEFT_ANKLE" : ["LEFT_FOOT", "LEFT_HEEL"],
-    "LEFT_HEEL" : ["LEFT_FOOT"],
+    "LEFTHIP" : ["LEFTKNEE"],
+    "LEFTKNEE" : ["LEFTANKLE"],
+    "LEFTANKLE" : ["LEFTFOOT", "LEFTHEEL"],
+    "LEFTHEEL" : ["LEFTFOOT"],
     
-    "RIGHT_HIP" : ["RIGHT_KNEE"],
-    "RIGHT_KNEE" : ["RIGHT_ANKLE"],
-    "RIGHT_ANKLE" : ["RIGHT_FOOT", "RIGHT_HEEL"],
-    "RIGHT_HEEL" : ["RIGHT_FOOT"],
+    "RIGHTHIP" : ["RIGHTKNEE"],
+    "RIGHTKNEE" : ["RIGHTANKLE"],
+    "RIGHTANKLE" : ["RIGHTFOOT", "RIGHTHEEL"],
+    "RIGHTHEEL" : ["RIGHTFOOT"],
 
-    "NECK" : ["HEAD", "LEFT_EYE", "RIGHT_EYE"],
+    "NECK" : ["HEAD", "LEFTEYE", "RIGHTEYE"],
     "HEAD" : ["NOSE"],
-    "LEFT_EYE" : ["LEFT_EAR"],
-    "RIGHT_EYE" : ["RIGHT_EAR"]    
+    "LEFTEYE" : ["LEFTEAR"],
+    "RIGHTEYE" : ["RIGHTEAR"],
+
+    "LEFTHANDTIP" : [],
+    "LEFTTHUMB" : [],
+    
+    "RIGHTHANDTIP" : [],
+    "RIGHTTHUMB" : [],
+    
+    "NOSE" : [],
+    "LEFTEAR" : [],
+    "RIGHTEAR" : [],
+    
+    "LEFTFOOT" : [],
+    "RIGHTFOOT" : []
+
+    
     }
 
-body_38_tree = {
-    "PELVIS": ["SPINE_1", "LEFT_HIP", "RIGHT_HIP"],
+body38tree = {
+    "PELVIS": ["SPINE1", "LEFTHIP", "RIGHTHIP"],
     
-    "SPINE_1": ["SPINE_2"],
-    "SPINE_2": ["SPINE_3"],
-    "SPINE_3": ["NECK", "LEFT_CLAVICLE", "RIGHT_CLAVICLE"],
+    "SPINE1": ["SPINE2"],
+    "SPINE2": ["SPINE3"],
+    "SPINE3": ["NECK", "LEFTCLAVICLE", "RIGHTCLAVICLE"],
 
     "NECK": ["NOSE"],
-    "NOSE": ["LEFT_EYE", "RIGHT_EYE"],
-    "LEFT_EYE": ["LEFT_EAR"],
-    "RIGHT_EYE": ["RIGHT_EAR"],
+    "NOSE": ["LEFTEYE", "RIGHTEYE"],
+    "LEFTEYE": ["LEFTEAR"],
+    "RIGHTEYE": ["RIGHTEAR"],
     
-    "LEFT_CLAVICLE": ["LEFT_SHOULDER"],
-    "LEFT_SHOULDER": ["LEFT_ELBOW"],
-    "LEFT_ELBOW": ["LEFT_WRIST"],
-    "LEFT_WRIST": ["LEFT_HAND_THUMB_4",
-                   "LEFT_HAND_INDEX_1",
-                   "LEFT_HAND_MIDDLE_4",
-                   "LEFT_HAND_PINKY_1"],
+    "LEFTCLAVICLE": ["LEFTSHOULDER"],
+    "LEFTSHOULDER": ["LEFTELBOW"],
+    "LEFTELBOW": ["LEFTWRIST"],
+    "LEFTWRIST": ["LEFTHANDTHUMB4",
+                   "LEFTHANDINDEX1",
+                   "LEFTHANDMIDDLE4",
+                   "LEFTHANDPINKY1"],
 
-    "RIGHT_CLAVICLE": ["RIGHT_SHOULDER"],
-    "RIGHT_SHOULDER": ["RIGHT_ELBOW"],
-    "RIGHT_ELBOW": ["RIGHT_WRIST"],
-    "RIGHT_WRIST": ["RIGHT_HAND_THUMB_4",
-                   "RIGHT_HAND_INDEX_1",
-                   "RIGHT_HAND_MIDDLE_4",
-                   "RIGHT_HAND_PINKY_1"],
+    "RIGHTCLAVICLE": ["RIGHTSHOULDER"],
+    "RIGHTSHOULDER": ["RIGHTELBOW"],
+    "RIGHTELBOW": ["RIGHTWRIST"],
+    "RIGHTWRIST": ["RIGHTHANDTHUMB4",
+                   "RIGHTHANDINDEX1",
+                   "RIGHTHANDMIDDLE4",
+                   "RIGHTHANDPINKY1"],
     
-    "LEFT_HIP" : ["LEFT_KNEE"],
-    "LEFT_KNEE" : ["LEFT_ANKLE"],
-    "LEFT_ANKLE" : ["LEFT_HEEL", "LEFT_BIG_TOE", "LEFT_SMALL_TOE"],
+    "LEFTHIP" : ["LEFTKNEE"],
+    "LEFTKNEE" : ["LEFTANKLE"],
+    "LEFTANKLE" : ["LEFTHEEL", "LEFTBIGTOE", "LEFTSMALLTOE"],
     
-    "RIGHT_HIP" : ["RIGHT_KNEE"],
-    "RIGHT_KNEE" : ["RIGHT_ANKLE"],
-    "RIGHT_ANKLE" : ["RIGHT_HEEL", "RIGHT_BIG_TOE", "RIGHT_SMALL_TOE"],
+    "RIGHTHIP" : ["RIGHTKNEE"],
+    "RIGHTKNEE" : ["RIGHTANKLE"],
+    "RIGHTANKLE" : ["RIGHTHEEL", "RIGHTBIGTOE", "RIGHTSMALLTOE"],
+
+    
 }
 
 
@@ -195,6 +245,40 @@ body_38_tree = {
 #    "LeftHeel"
 #    "RightHeel"
 
+tpose34_pos = [[0,0,0],
+               [-0.000732270938924443,175.158289701814,0.0000404],
+               [0.104501423707752,350.306093180137,0.061023624087894],
+               [0.209734388920577,525.459141360196,0.122005361332611],
+               [-47.5920764358155,526.439401661188,0.945479045649915],
+               [-173.508163386225,526.509589382348,2.98848444604651],
+               [-413.490495136004,529.070006884027,4.30015451481757],
+               [-644.259234923473,531.557805055099,5.5156119864156],
+               [-690.412981869986,532.055366973068,5.75870846651414],
+               [-782.7204827236,533.050484095638,6.24488492674942],
+               [-737.171470366004,477.177940319642,6.03507728101326],
+               [48.0126939292815,526.382576868867,-0.700813930486266],
+               [173.928779031094,526.312389136708,-2.74381818341968],
+               [413.965281719423,525.913766951398,-5.58751914341834],
+               [644.770225962532,525.03114718918,-8.36370311424063],
+               [690.931216942206,524.854620798345,-8.91894225928869],
+               [783.253196286002,524.501573309859,-10.029413939978],
+               [736.897241876494,469.296359031723,-9.22217198040476],
+               [-97.2538992002065,0,-0.0216466824273884],
+               [-97.2534603765872,-398.665678321646,-0.0280368622539885],
+               [-97.236806268837,-753.034804644565,-0.0408179870540185],
+               [-97.2541801180481,-841.630928132314,106.266711069826],
+               [97.2538982249762,0,0.0216480069085377],
+               [97.2606469820357,-398.664829041876,0.0265545153545871],
+               [97.2769776133806,-753.033961966181,0.0252733646276821],
+               [97.2596464463626,-841.626635633415,106.335670500348],
+               [1.30731388292955,660.085767955841,62.6295143653575],
+               [1.37823874062583,704.938429698234,62.5519366785149],
+               [-25.8996591150869,736.342683178085,31.5073346749533],
+               [-76.4225396149832,715.693774717041,-52.9081045914678],
+               [27.8706194688158,736.259256448681,30.7476818991719],
+               [75.9266183557466,715.457396322932,-55.0604622597071],
+               [-97.2254670188798,-841.625806800333,-35.4809212169046],
+               [97.2881989464546,-841.626116231009,-35.4119624250308]]
 
 
 class Quantized_Quaternion:
@@ -218,9 +302,9 @@ class Quaternion:
     def __init__(self, floats):
         self.rot = Rotation.from_quat(floats)
 
-
     def __mul__(self, q):
-        return self.rot * q.rot
+        rmul = (self.rot * q.rot).as_quat()
+        return Quaternion(rmul)
 
     def zero():
         return Quaternion([0.0, 0.0, 0.0, 1.0])
@@ -323,6 +407,41 @@ class ZedSkelHeader:
         self.process_delta = struct.unpack('i', ifp.read(4))[0]
         self.padding = struct.unpack('bbb', ifp.read(3))
 
+
+class ForwardKinematics:
+
+    def __init__(self, bonelist, bonetree, rootbone, tpose, rootpos = Position([0,0,0])):
+        self.bonetree = bonetree
+        self.bonelist = bonelist
+        self.root = rootbone
+        self.tpose = [Position(p) for p in tpose]
+        
+    def propagate(self, rotations, initial_position):
+
+        keyvector = [Position([0, 0, 0]) for i in range(34)]
+        
+        def _recurse(bone, c_rot, c_pos, pIdx):
+            cIdx = self.bonelist.index(bone)
+
+            if (pIdx < 0):
+                new_pos = c_pos
+            else:
+                # print("Pos rec: %d, %d"%(cIdx, pIdx))
+                # print("Tpose c: ", self.tpose[cIdx])
+                # print("Tpose p: ", self.tpose[pIdx])
+                # print("Diff is %s"%(self.tpose[cIdx] - self.tpose[pIdx]))
+                # print("C_rot is %s"%c_rot)
+                new_pos = c_pos + c_rot.apply(self.tpose[cIdx] - self.tpose[pIdx])
+            
+            n_rot = c_rot * rotations[cIdx]         
+
+            keyvector[cIdx] = new_pos
+            
+            for child in self.bonetree[bone]:
+                _recurse(child, n_rot, new_pos, cIdx)
+        _recurse(self.root, Quaternion.zero(), initial_position, -1)
+        return keyvector
+        
 class BVHReader():
 
     # Reads a BVH file in ZED signal format
@@ -332,14 +451,13 @@ class BVHReader():
         with open(self.filename, 'r') as fp:
             self.mocap = Bvh(fp.read())
 
-        self.rots = [get_quaternions(i) for i in range(self.mocap.nframes)]
-
+        self.rots = [self.get_quaternions(i) for i in range(self.mocap.nframes)]
     def get_quantized_quats(self, frame):
 
         rotations = [Quaternion.zero() for i in range(34)]
         
         for joint in self.mocap.get_joints_names():
-            jidx = body_parts_34.index(joint)
+            jidx = body_parts34.index(joint.upper())
             
             fval = self.mocap.get_frame_joint_channels(frame, joint, ['Xrotation', 'Yrotation', 'Zrotation'])
             
@@ -351,42 +469,48 @@ class BVHReader():
         rotations = [Quaternion.zero() for i in range(34)]
         
         for joint in self.mocap.get_joints_names():
-            jidx = body_parts_34.index(joint)
+            jidx = body_parts34.index(joint.upper())
             
-            fval = self.mocap.get_frame_joint_channels(frame, joint, ['Xrotation', 'Yrotation', 'Zrotation'])
+            fval = self.mocap.frame_joint_channels(frame, joint, ['Xrotation', 'Yrotation', 'Zrotation'])
             
             rotations[jidx] = Euler(fval).toQuat()
         return rotations
 
+    def get_keypoints(self):
 
+        # Use the non-quantized rotations
+        fk = ForwardKinematics(body_parts34, body_34_tree, 'PELVIS', tpose34_pos)
 
-# These are the 18 standard bones. How do we fill in the keypoints for the other 14?
-# bone_list_34 = {
-#     "Pelvis" : 0,
-#     "NavalSpine" : 1,
-#     "ChestSpine" : 2,
-#     "Neck" : 3,
-#     "LeftClavicle" : 4,
-#     "LeftShoulder" : 5,
-#     "LeftElbow" : 6,
-#     "LeftWrist" : 7,
+        kp = [fk.propagate(self.get_quaternions(frame), Position([0, 0, 0])) for frame in range(self.mocap.nframes)]
+        return kp
 
-#     "RightClavicle" : 11,
-#     "RightShoulder" : 12,
-#     "RightElbow" : 13,
-#     "RightWrist" : 14,
+    def write_zed_frame_data(self, fp):
+        pass
+    
 
-#     "RightHip" : 22,
-#     "RightKnee" : 23,
-#     "RightAnkle" : 24,
-#     "LeftHip" : 18,
-#     "LeftKnee" : 19,
-#     "LeftAnkle" : 20
-#     }
+    def write_zed_header(self, fp):
+        pass
 
-
-
-
+    def write_frame(self, fp, frame, time):
+        fp.write(struct.pack('i', DGSAV_FRAME_MARKER))
+        # write json header
+        # write signalmetadata
+        # write zed header
+        # write zed data 
+                 
+    def write_header(self, fp):
+        fp.write(DANCEGRAPH_SAVE_MARKER.encode('utf-8'))
+        jsonbundle = json.dumps(DGS_HEADER_TEMPLATE, indent = 4).encode('utf-8')
+        fp.write(struct.pack('i', len(jsonbundle)))
+        fp.write(jsonbundle)
+        
+    
+    def write_zed(self, filename):
+        with open(filename, 'wb') as fp:
+            self.write_header(fp)
+            for i in range(len(self.rotations)):
+                self.write_frame(self, fp, i)
+        
 
 if (__name__ == '__main__'):
 
@@ -394,7 +518,10 @@ if (__name__ == '__main__'):
     parser.add_argument("infile", type = str)
     args = parser.parse_args()
 
-
+    bvh = BVHReader(args.infile)
 
     
-    
+    kp = bvh.get_keypoints()
+    print(len(kp))
+    print(len(kp[0]))
+    print([str(i) for i in kp[0]])

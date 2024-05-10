@@ -583,8 +583,8 @@ class AnimatedScatterKP:
         self.ani = animation.FuncAnimation(self.fig, self.update_plot, frames=len(self.data),
                                            interval = 1000.0 / self.fps )
         if (self.savefile is not None):        
-            writergif = animation.PillowWriter(fps = self.fps)
-            self.ani.save(self.savefile, writer = writergif)
+            writer = animation.FFMpegWriter(fps = self.fps)
+            self.ani.save(self.savefile, writer = writer)
             
         plt.show()
         

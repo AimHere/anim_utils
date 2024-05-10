@@ -15,11 +15,18 @@ import matplotlib.animation as animation
 from mpl_toolkits.mplot3d import Axes3D
 import pandas as pd
 
+import math
+
 
 from scipy.spatial.transform import Rotation
 
 DANCEGRAPH_SAVE_MARKER = 'DGSAV'
 DGSAV_FRAME_MARKER = 1448298308
+
+DEG2RAD = math.pi / 180
+RAD2DEG = 180 / math.pi
+
+ZED_34_PARENTS = {}
 
 DGS_HEADER_TEMPLATE = {
     "producer_name" : "camera",
@@ -328,7 +335,8 @@ class Quaternion:
         return (" ".join([str(i) for i in q]))
 
     def apply(self, x):
-        return Position(self.rot.apply([x.y, x.x, x.z]))
+        return Position(self.rot.apply([x.x, x.y, x.z]))
+
 
     def toQuantQuat(self):
         q = self.rot.as_quat()
@@ -340,8 +348,9 @@ class Quaternion:
         return Quantized_Quaternion(ints)
     
 class Euler:
-    def __init__(self, floats):
+    def __init__(self, floats, perm = 'XYZ'):
 
+        self.perm = perm
         self.X = floats[0]
         self.Y = floats[1]
         self.Z = floats[2]
@@ -352,14 +361,19 @@ class Euler:
     def __str__(self):
         return (" ".join([str(i) for i in [self.X, self.Y, self.Z]]))
 
-    def toQuat(self, perm = 'xyz'):
-        rot = Rotation.from_euler(perm, [self.X, self.Y, self.Z])
+    def toQuat(self, perm = None):
+        if (perm is None):
+            mperm = self.perm
+        else:
+            mperm = perm
+        rot = Rotation.from_euler(mperm, [self.X,
+                                          self.Y,
+                                          self.Z], degrees = True)
         q = rot.as_quat()
         return Quaternion(list(q))
 
-    def toQuantQuat(self, perm = 'xyz'):
+    def toQuantQuat(self, perm = 'XYZ'):
         return self.toQuat(perm).toQuantQuat()
-        
 
 class Position:
     def __init__(self, floats):
@@ -381,6 +395,10 @@ class Position:
     def __sub__(self, a):
         return Position([self.x - a.x, self.y - a.y, self.z - a.z])
 
+    def __mul__ (self, k):
+        return Position([k * self.x, k * self.y, k * self.z])
+
+    
     def np(self):
         return np.array([self.x, self.y, self.z])
 
@@ -429,26 +447,26 @@ class ForwardKinematics:
 
         keyvector = [Position([0, 0, 0]) for i in range(34)]
         
-        def _recurse(bone, c_rot, c_pos, pIdx):
+        def _recurse(bone, c_rot, pIdx):
             cIdx = self.bonelist.index(bone)
 
             if (pIdx < 0):
-                new_pos = c_pos
+                n_rot = c_rot
+                new_pos = initial_position
             else:
-                # print("Pos rec: %d, %d"%(cIdx, pIdx))
-                # print("Tpose c: ", self.tpose[cIdx])
-                # print("Tpose p: ", self.tpose[pIdx])
-                # print("Diff is %s"%(self.tpose[cIdx] - self.tpose[pIdx]))
-                # print("C_rot is %s"%c_rot)
-                new_pos = c_pos + c_rot.apply(self.tpose[cIdx] - self.tpose[pIdx])
-            
-            n_rot = c_rot * rotations[cIdx]         
+                n_rot = c_rot * rotations[pIdx]
+                new_pos = keyvector[pIdx] + n_rot.apply(self.tpose[cIdx] - self.tpose[pIdx])
 
             keyvector[cIdx] = new_pos
             
             for child in self.bonetree[bone]:
-                _recurse(child, n_rot, new_pos, cIdx)
-        _recurse(self.root, Quaternion.zero(), initial_position, -1)
+                _recurse(child, n_rot, cIdx)
+                
+        initial_rot = rotations[self.bonelist.index(self.root)]
+
+        _recurse(self.root, initial_rot, -1)
+
+        
         return keyvector
         
 class BVHReader():
@@ -461,6 +479,8 @@ class BVHReader():
             self.mocap = Bvh(fp.read())
 
         self.rots = [self.get_quaternions(i) for i in range(self.mocap.nframes)]
+
+
     def get_quantized_quats(self, frame):
 
         rotations = [Quaternion.zero() for i in range(34)]
@@ -480,9 +500,15 @@ class BVHReader():
         for joint in self.mocap.get_joints_names():
             jidx = body_parts34.index(joint.upper())
             
-            fval = self.mocap.frame_joint_channels(frame, joint, ['Xrotation', 'Yrotation', 'Zrotation'])
-            
-            rotations[jidx] = Euler(fval).toQuat()
+            #fval = self.mocap.frame_joint_channels(frame, joint, ['Xrotation', 'Yrotation', 'Zrotation'])
+            chan = self.mocap.joint_channels(joint)
+            fval = self.mocap.frame_joint_channels(frame, joint, chan)
+
+            # nfval = self.mocap.frame_joint_channels(frame, joint, chan)            
+            # fval = [-q for q in nfval]
+            perm = "".join([c[0].lower() for c in chan if c[1:] == 'rotation'])
+
+            rotations[jidx] = Euler(fval, perm = perm).toQuat()
         return rotations
 
     def get_keypoints(self):
@@ -522,17 +548,25 @@ class BVHReader():
 
 
 class AnimatedScatterKP:
-    def __init__(self, keypoints):
+    def __init__(self, keypoints, skellines = False, savefile = None, fps = 50):
 
         self.numpoints = len(keypoints[0])
 
+        self.savefile = savefile
         self.data = keypoints
 
+        self.lines = []
+
+        self.fps = fps
+        
+        self.skellines = skellines
         t = np.array([np.ones(self.numpoints) * i for i in range(len(self.data))]).flatten()
         x = np.array([frame[i].x for frame in self.data for i in range(self.numpoints)])
         y = np.array([frame[i].y for frame in self.data for i in range(self.numpoints)])
         z = np.array([frame[i].z for frame in self.data for i in range(self.numpoints)])
 
+
+        
         self.df = pd.DataFrame({'time' : t,
                                 'x' : x,
                                 'y' : y,
@@ -540,26 +574,75 @@ class AnimatedScatterKP:
         
         self.fig, self.ax = plt.subplots(1, subplot_kw = dict(projection='3d'))
         self.graph = self.ax.scatter(self.df.x, self.df.y, self.df.z)
+        if (self.skellines):
+            self.drawlines(self.df.x, self.df.y, self.df.z)
+        
+        self.ax.view_init(elev=90, azim=00, roll=90)
+        self.ax.view_init(elev=90, azim=00, roll=90)
 
         self.ani = animation.FuncAnimation(self.fig, self.update_plot, frames=len(self.data),
-                                           interval = 33)
-
+                                           interval = 1000.0 / self.fps )
+        if (self.savefile is not None):        
+            writergif = animation.PillowWriter(fps = self.fps)
+            self.ani.save(self.savefile, writer = writergif)
+            
         plt.show()
         
+    def drawlines(self, dfx, dfy, dfz):
+        linex = []
+        liney = []
+        linez = []
+
+        for b in ZED_34_PARENTS:
+            if (ZED_34_PARENTS[b] >= 0):
+                linex.append([dfx[b], dfx[ZED_34_PARENTS[b]]])
+                liney.append([dfy[b], dfy[ZED_34_PARENTS[b]]])
+                linez.append([dfz[b], dfz[ZED_34_PARENTS[b]]])                    
+                    
+        for i in range(33):
+            self.lines.append(self.ax.plot(linex[i], liney[i], linez[i]))
+            
     def update_plot(self, num):
         data = self.df[self.df['time'] == num]
+
+        if (self.skellines):
+            linex = []
+            liney = []
+            linez = []
+            for b in ZED_34_PARENTS:
+                if (ZED_34_PARENTS[b] >= 0):
+                    qb = 34 * num + b
+                    qp = 34 * num + ZED_34_PARENTS[b]
+                    
+                    linex.append([data.x[qb], data.x[qp]])
+                    liney.append([data.y[qb], data.y[qp]])
+                    linez.append([data.z[qb], data.z[qp]])
+            for i in range(33):
+                self.lines[i][0].set_data_3d(linex[i], liney[i], linez[i])
+                    
         self.graph._offsets3d = (data.x, data.y, data.z)
 
                 
 if (__name__ == '__main__'):
+    for idx, bone in enumerate(body_parts34):
+        try:
+            for nbone in body_34_tree[bone]:
+                
+                nidx = body_parts34.index(nbone)
+                ZED_34_PARENTS[nidx] = idx
+        except(KeyError):
+            pass
 
     parser = argparse.ArgumentParser()
+    parser.add_argument("--savefile", type = str, default = None)
     parser.add_argument("infile", type = str)
     args = parser.parse_args()
 
     bvh = BVHReader(args.infile)
     kp = bvh.get_keypoints()
 
+    # kpz = np.array([v.np() for v in kp[0]])
+    # np.save("Keypoints0.npy", kpz)
     #npkp = np.array([[b.np() for b in frame] for frame in kp])
 
-    anim = AnimatedScatterKP(kp)
+    anim = AnimatedScatterKP(kp, skellines = True, savefile = args.savefile, fps = 1.0 / bvh.mocap.frame_time)

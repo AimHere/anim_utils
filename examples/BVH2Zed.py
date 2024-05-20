@@ -294,6 +294,8 @@ tpose34_pos = [[0,0,0],
                [97.2881989464546,-841.626116231009,-35.4119624250308]]
 
 
+
+
 class Quantized_Quaternion:
     # Represent a quaternion with three 16-bit fixed-point ints
     def __init__(self, ints):
@@ -348,32 +350,34 @@ class Quaternion:
         return Quantized_Quaternion(ints)
     
 class Euler:
-    def __init__(self, floats, perm = 'XYZ'):
+    def __init__(self, floats, perm = 'xyz'):
 
         self.perm = perm
-        self.X = floats[0]
-        self.Y = floats[1]
-        self.Z = floats[2]
+        self.e0 = floats[0]
+        self.e1 = floats[1]
+        self.e2 = floats[2]
 
     def cstr(self, sep = ","):
-        return (sep.join([str(i) for i in [self.X, self.Y, self.Z]]))
+        return (sep.join([str(i) for i in [self.e0, self.e1, self.e2]]))
     
     def __str__(self):
-        return (" ".join([str(i) for i in [self.X, self.Y, self.Z]]))
+        return (" ".join([str(i) for i in [self.e0, self.e1, self.e2]]))
 
-    def toQuat(self, perm = None):
-        if (perm is None):
-            mperm = self.perm
-        else:
-            mperm = perm
-        rot = Rotation.from_euler(mperm, [self.X,
-                                          self.Y,
-                                          self.Z], degrees = True)
+    def toQuat(self, zneg = False):
+
+        rot = Rotation.from_euler(self.perm, [self.e0,
+                                              self.e1,
+                                              self.e2], degrees = True)
         q = rot.as_quat()
+        
+        if (zneg == True):
+            return Quaternion([q[0], q[1], -q[2], q[3]])
+
         return Quaternion(list(q))
 
-    def toQuantQuat(self, perm = 'XYZ'):
-        return self.toQuat(perm).toQuantQuat()
+
+    def toQuantQuat(self):
+        return self.toQuat().toQuantQuat()
 
 class Position:
     def __init__(self, floats):
@@ -442,6 +446,7 @@ class ForwardKinematics:
         self.bonelist = bonelist
         self.root = rootbone
         self.tpose = [Position(p) for p in tpose]
+
         
     def propagate(self, rotations, initial_position):
 
@@ -458,14 +463,13 @@ class ForwardKinematics:
                 new_pos = keyvector[pIdx] + n_rot.apply(self.tpose[cIdx] - self.tpose[pIdx])
 
             keyvector[cIdx] = new_pos
-            
+
             for child in self.bonetree[bone]:
                 _recurse(child, n_rot, cIdx)
                 
         initial_rot = rotations[self.bonelist.index(self.root)]
 
         _recurse(self.root, initial_rot, -1)
-
         
         return keyvector
         
@@ -488,9 +492,12 @@ class BVHReader():
         for joint in self.mocap.get_joints_names():
             jidx = body_parts34.index(joint.upper())
             
-            fval = self.mocap.get_frame_joint_channels(frame, joint, ['Xrotation', 'Yrotation', 'Zrotation'])
+            fval = self.mocap.get_frame_joint_channels(frame, joint, chan)
+            fval[2] = -fval[2]
+            #perm = "".join([c[0].lower() for c in self.mocap.joint_channels(joint) if c[1:] == 'rotation'])
+            perm = "".join([c[0].lower() for c in self.mocap.joint_channels(joint) if c[1:] == 'rotation'])
+            rotations[jidx] = Euler(fval, perm = perm).toQuantQuat()
             
-            rotations[jidx] = Euler(fval).toQuantQuat()
         return rotations
 
     def get_quaternions(self, frame):
@@ -500,22 +507,26 @@ class BVHReader():
         for joint in self.mocap.get_joints_names():
             jidx = body_parts34.index(joint.upper())
             
-            #fval = self.mocap.frame_joint_channels(frame, joint, ['Xrotation', 'Yrotation', 'Zrotation'])
+
             chan = self.mocap.joint_channels(joint)
+
+            perm = "".join([c[0].lower() for c in chan if c[1:] == 'rotation'])
+            #fval = self.mocap.frame_joint_channels(frame, joint, ['Zrotation', 'Yrotation', 'Xrotation'])
             fval = self.mocap.frame_joint_channels(frame, joint, chan)
 
-            # nfval = self.mocap.frame_joint_channels(frame, joint, chan)            
-            # fval = [-q for q in nfval]
-            perm = "".join([c[0].lower() for c in chan if c[1:] == 'rotation'])
-
-            rotations[jidx] = Euler(fval, perm = perm).toQuat()
+            zindex = perm.index('z')
+            fval[zindex] = -fval[zindex]
+            rotations[jidx] = Euler(fval, perm = perm).toQuat(zneg = True)
+            #print("Euler(%s) %s converted to %s"%(perm, Euler(fval, perm = perm), rotations[jidx]))
+            #print("Euler(%s) %s converted to %s"%(perm, fval, rotations[jidx]))
+            
         return rotations
 
     def get_keypoints(self):
 
         # Use the non-quantized rotations
         fk = ForwardKinematics(body_parts34, body_34_tree, 'PELVIS', tpose34_pos)
-
+        print([str(Q) for Q in self.get_quaternions(4)])
         kp = [fk.propagate(self.get_quaternions(frame), Position([0, 0, 0])) for frame in range(self.mocap.nframes)]
         return kp
 
@@ -565,8 +576,6 @@ class AnimatedScatterKP:
         y = np.array([frame[i].y for frame in self.data for i in range(self.numpoints)])
         z = np.array([frame[i].z for frame in self.data for i in range(self.numpoints)])
 
-
-        
         self.df = pd.DataFrame({'time' : t,
                                 'x' : x,
                                 'y' : y,
@@ -576,12 +585,19 @@ class AnimatedScatterKP:
         self.graph = self.ax.scatter(self.df.x, self.df.y, self.df.z)
         if (self.skellines):
             self.drawlines(self.df.x, self.df.y, self.df.z)
+
         
         self.ax.view_init(elev=90, azim=00, roll=90)
         self.ax.view_init(elev=90, azim=00, roll=90)
 
+        
         self.ani = animation.FuncAnimation(self.fig, self.update_plot, frames=len(self.data),
                                            interval = 1000.0 / self.fps )
+
+        self.ax.set_xlim(-1000, 1000)
+        self.ax.set_ylim(-1000, 1000)
+        self.ax.set_zlim(-1000, 1000)        
+        
         if (self.savefile is not None):        
             writer = animation.FFMpegWriter(fps = self.fps)
             self.ani.save(self.savefile, writer = writer)

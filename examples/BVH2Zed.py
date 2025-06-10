@@ -528,7 +528,7 @@ class BVHReader_NP():
         rotations[body_34_parts.index('RIGHTHEEL')] = Quaternion([math.sqrt(2), 0, 0, -math.sqrt(2)])                  
         
         for joint in self.mocap.get_joints_names():
-            jidx = body_parts34.index(joint.upper())
+            jidx = body_34_parts.index(joint.upper())
             chan = self.mocap.joint_channels(joint)
 
             perm = "".join([c[0].lower() for c in chan if c[1:] == 'rotation'])
@@ -749,11 +749,11 @@ class AnimatedScatterKP:
 
                 
 if (__name__ == '__main__'):
-    for idx, bone in enumerate(body_parts34):
+    for idx, bone in enumerate(body_34_parts):
         try:
             for nbone in body_34_tree[bone]:
                 
-                nidx = body_parts34.index(nbone)
+                nidx = body_34_parts.index(nbone)
                 ZED_34_PARENTS[nidx] = idx
         except(KeyError):
             pass

@@ -153,6 +153,8 @@ def main(infile, outfile, default_channels, order = 'XYZ',  fps = 60.0, noroot =
     if (norootpos):
         out_rot_data[:, :3] = 0.00
 
+    out_rot_data[:, :3] = args.pos_scale * out_rot_data[:, :3]
+        
     if (claviclefix):
         bn = _some_variables()[4]
         lclidx = bn.index("LClavicle")
@@ -172,6 +174,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Run retargeting.')
     parser.add_argument('--ordering', type = str, default = 'XYZ')    
     parser.add_argument("--kp", type = str, help = "Dump keypoints to a file")
+    parser.add_argument("--pos_scale", type = float, default = 1.0)
     parser.add_argument("--fps", type = float, help = "Override fps", default = 50.0)
     parser.add_argument("--norootpos", action = "store_true", help = "No root motion")
     parser.add_argument("--testreorder", action = "store_true", help = "Reorder root pos")
